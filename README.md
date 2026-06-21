@@ -102,6 +102,20 @@ small test suite with no dependencies:
 
     node bridge/test.mjs
 
+## Disclaimer
+
+This is a personal tool, provided as is and without warranty (see the license).
+A few practical notes:
+
+- It is not affiliated with or endorsed by Anthropic, Adzuna, or any of the job
+  boards it links to or queries. Product names and trademarks belong to their
+  owners.
+- The job feed and AI features call third-party services (the public job APIs and
+  Anthropic). You are responsible for using those services within their terms and
+  for any costs you incur, such as Anthropic API usage.
+- AI-generated text (summaries, cover letters) can be wrong or generic. Read and
+  edit anything before you send it.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Copyright remains with the author.
