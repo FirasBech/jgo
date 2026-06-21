@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Start the Career Dashboard bridge and open it in the browser (macOS / Linux).
+# Start the J.GO bridge and open it in the browser (macOS / Linux).
 # Configuration is read from a .env file - see .env.example.
 cd "$(dirname "$0")" || exit 1
 

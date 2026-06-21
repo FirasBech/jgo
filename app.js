@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════
-   Career Dashboard — app.js
+   J.GO — app.js
    Single-file SPA: Store · TagEngine · Router · Views · Export
    ══════════════════════════════════════════════════════════════════ */
 

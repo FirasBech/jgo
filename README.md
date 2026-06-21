@@ -1,4 +1,4 @@
-# Career Dashboard
+# J.GO
 
 A single-page job-search workspace. Track applications, build and export a CV,
 write tailored cover letters, check a posting for missing keywords, and pull live
@@ -38,8 +38,8 @@ need the bridge running.
 
 ## Running it
 
-Windows: double-click `Launch Dashboard.cmd`. It starts the bridge and opens the
-app in your browser.
+Windows: double-click `Launch J.GO.cmd`. It starts the bridge and opens the app
+in your browser.
 
 macOS or Linux:
 

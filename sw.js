@@ -1,4 +1,4 @@
-/* Career Dashboard — service worker (offline app shell).
+/* J.GO — service worker (offline app shell).
    Caches only the static front-end. The bridge (localhost:8787) and the public
    job APIs are a different origin and are always passed through to the network. */
 const CACHE = 'career-dash-v1';

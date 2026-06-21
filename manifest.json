@@ -1,7 +1,7 @@
 {
-  "name": "Career Dashboard",
-  "short_name": "Career",
-  "description": "Local job-search dashboard: CV builder, ATS check, application tracker, AI tailoring, and a live job radar.",
+  "name": "J.GO",
+  "short_name": "J.GO",
+  "description": "J.GO - a local job-search dashboard: CV builder, ATS check, application tracker, AI tailoring, and a live job radar.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

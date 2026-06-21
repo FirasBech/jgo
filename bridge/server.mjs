@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════
-   Claude Bridge — local server that lets the Career Dashboard call
-   Claude using YOUR Claude Code subscription (no API key).
+   J.GO — local bridge that lets the app call Claude, either via your own
+   Anthropic API key or the Claude Code CLI subscription.
 
    It shells out to `claude -p` (headless print mode), which draws from
    whatever auth Claude Code is logged in with — i.e. your Pro/Max plan.
@@ -603,7 +603,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   server.listen(PORT, HOST, () => {
     const aiMode = ANTHROPIC_KEY ? 'Anthropic API (your ANTHROPIC_API_KEY)' : `Claude CLI subscription (${CLAUDE.bin})`;
-    console.log('\n  Career Dashboard - local bridge');
+    console.log('\n  J.GO - local bridge');
     console.log(`  Dashboard : http://localhost:${PORT}   (open this; enables install + phone)`);
     console.log(`  Endpoints : POST /ai   GET /jobs   POST /backup   GET /health`);
     console.log(`  AI        : ${aiMode}`);
