@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Career Dashboard</title>
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Career">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="layout">
+
+  <!-- ── Mobile nav (hamburger + scrim) ──────────────────────── -->
+  <button id="nav-toggle" aria-label="Menu">☰</button>
+  <div id="nav-scrim"></div>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="avatar">CD</div>
+      <div class="brand-text">
+        <div class="brand-name">Career Dashboard</div>
+        <div class="brand-role" data-i18n="brand.role">Career Manager</div>
+      </div>
+    </div>
+
+    <nav id="nav">
+      <a href="#home" class="nav-link" data-route="home">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span data-i18n="nav.dashboard">Dashboard</span>
+      </a>
+      <a href="#profile" class="nav-link" data-route="profile">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <span data-i18n="nav.profile">Profile &amp; Tags</span>
+      </a>
+      <a href="#cv" class="nav-link" data-route="cv">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <span data-i18n="nav.cv">CV Builder</span>
+      </a>
+      <a href="#letters" class="nav-link" data-route="letters">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <span data-i18n="nav.letters">Letters</span>
+      </a>
+      <a href="#ats" class="nav-link" data-route="ats">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span data-i18n="nav.ats">ATS Analyzer</span>
+      </a>
+      <a href="#tracker" class="nav-link" data-route="tracker">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+        <span data-i18n="nav.tracker">Job Tracker</span>
+      </a>
+      <a href="#apply" class="nav-link" data-route="apply">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <span data-i18n="nav.apply">Quick Apply</span>
+      </a>
+      <a href="#radar" class="nav-link" data-route="radar">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <span data-i18n="nav.radar">Job Radar</span>
+        <span id="nav-radar-badge" class="nav-badge" hidden></span>
+      </a>
+      <a href="#insights" class="nav-link" data-route="insights">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6m4 6V5m4 14v-9M5 21h14"/>
+        </svg>
+        <span data-i18n="nav.insights">Insights</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button id="bridge-status" class="bridge-status is-checking" title="">
+        <span class="bridge-dot"></span><span id="bridge-status-text" data-i18n="bridge.checking">Checking…</span>
+      </button>
+      <div class="sf-data-btns">
+        <button id="btn-theme" class="sf-btn" data-i18n-title="footer.themeTitle" title="Basculer dark/light">🌙</button>
+        <button id="btn-lang" class="sf-btn" data-i18n-title="footer.langTitle" title="Changer de langue (FR/EN)">🌐 EN</button>
+        <button id="btn-backup" class="sf-btn" data-i18n="footer.backup" data-i18n-title="footer.backupTitle" title="Télécharger une sauvegarde JSON">⬇ Backup</button>
+        <button id="btn-restore" class="sf-btn" data-i18n="footer.restore" data-i18n-title="footer.restoreTitle" title="Restaurer depuis un fichier">⬆ Restore</button>
+      </div>
+      <input type="file" id="restore-file" accept="application/json" hidden>
+      <button id="btn-reset" class="btn-reset-all" data-i18n="footer.reset">⚠ Reset all data</button>
+    </div>
+  </aside>
+
+  <!-- ── Main content ─────────────────────────────────────────── -->
+  <main id="main">
+    <div id="view"></div>
+  </main>
+
+</div>
+
+<!-- ── Tag autocomplete popup ──────────────────────────────────── -->
+<div id="tag-popup">
+  <div id="tag-popup-header">
+    <span class="at">@</span><span id="tag-query-display"></span>
+    <span id="tag-hint">type to filter…</span>
+  </div>
+  <div id="tag-popup-list"></div>
+  <div id="tag-popup-footer">↑↓ &nbsp;·&nbsp; Enter insert &nbsp;·&nbsp; Esc close</div>
+</div>
+
+<!-- ── Toast notification ───────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── AI assistant modal ───────────────────────────────────────── -->
+<div id="ai-modal" class="ai-overlay" hidden>
+  <div class="ai-dialog">
+    <div class="ai-head">
+      <span id="ai-title">✨ Assistant IA</span>
+      <span id="ai-mode-badge" class="ai-badge"></span>
+      <button id="ai-close" class="ai-x" title="Fermer">✕</button>
+    </div>
+    <div id="ai-status" class="ai-status"></div>
+
+    <div id="ai-controls" class="ai-controls">
+      <label class="ai-ctl">
+        <span>Model</span>
+        <select id="ai-model" title="Pick the Claude model for this generation">
+          <option value="auto">Auto · best for task</option>
+          <option value="haiku">⚡ Haiku · fast &amp; cheap</option>
+          <option value="sonnet">🟡 Sonnet · balanced</option>
+          <option value="opus">🔴 Opus · strongest</option>
+        </select>
+      </label>
+      <label class="ai-ctl ai-ctl-web" title="Let Claude search the web for current, real-world info (slower)">
+        <input type="checkbox" id="ai-web"> 🌐 Research <span class="ai-ctl-hint">(web)</span>
+      </label>
+    </div>
+
+    <div id="ai-prompt-wrap" class="ai-prompt-wrap" hidden>
+      <label data-i18n="ai.promptLabel">Prompt à copier dans Claude :</label>
+      <textarea id="ai-prompt" readonly rows="6"></textarea>
+      <button id="ai-copy-prompt" class="btn btn-sm btn-accent" data-i18n="ai.copyPrompt">📋 Copier le prompt</button>
+      <p class="ai-help" data-i18n="ai.help">Collez-le dans Claude (claude.ai ou Claude Code), puis collez la réponse ci-dessous et cliquez sur Appliquer.</p>
+    </div>
+
+    <label id="ai-out-label" data-i18n="ai.outLabel">Résultat :</label>
+    <div id="ai-toolbar" class="ai-toolbar" hidden>
+      <div class="ai-tb-group">
+        <span class="ai-tb-label" data-i18n="ai.tone">Ton</span>
+        <button class="ai-tb-btn" data-tb="professional" data-i18n="ai.pro" data-i18n-title="ai.ttPro" title="Rendre plus professionnel">Pro</button>
+        <button class="ai-tb-btn" data-tb="casual" data-i18n="ai.casual" data-i18n-title="ai.ttCasual" title="Rendre plus naturel">Naturel</button>
+        <button class="ai-tb-btn" data-tb="formal" data-i18n="ai.formal" data-i18n-title="ai.ttFormal" title="Rendre plus formel">Formel</button>
+      </div>
+      <span class="ai-tb-divider"></span>
+      <div class="ai-tb-group">
+        <span class="ai-tb-label" data-i18n="ai.length">Longueur</span>
+        <button class="ai-tb-btn" data-tb="shorten" data-i18n="ai.short" data-i18n-title="ai.ttShort" title="Raccourcir le texte">↓ Court</button>
+        <button class="ai-tb-btn" data-tb="lengthen" data-i18n="ai.long" data-i18n-title="ai.ttLong" title="Développer le texte">↑ Long</button>
+      </div>
+      <span class="ai-tb-divider"></span>
+      <div class="ai-tb-group">
+        <button class="ai-tb-btn ai-tb-enhance" data-tb="enhance" data-i18n="ai.enhance" data-i18n-title="ai.ttEnhance" title="Améliorer l'impact">⚡ Améliorer</button>
+        <button class="ai-tb-btn" data-tb="simplify" data-i18n="ai.simplify" data-i18n-title="ai.ttSimplify" title="Simplifier le langage">✂ Simplifier</button>
+        <button class="ai-tb-btn" data-tb="bullets" data-i18n="ai.bullets" data-i18n-title="ai.ttBullets" title="Convertir en bullet points">• Bullets</button>
+      </div>
+      <span class="ai-tb-divider"></span>
+      <div class="ai-tb-group">
+        <span class="ai-tb-label">Translate</span>
+        <button class="ai-tb-btn" data-tb="arabic" title="Translate to Arabic (for Gulf applications)">🇸🇦 العربية</button>
+        <button class="ai-tb-btn" data-tb="english" title="Translate to English">🇬🇧 English</button>
+      </div>
+    </div>
+    <textarea id="ai-output" rows="10" dir="auto" data-i18n-ph="ai.outPlaceholder" placeholder="Le résultat apparaîtra ici…"></textarea>
+
+    <div class="ai-actions">
+      <button id="ai-apply" class="btn btn-primary" data-i18n="ai.apply">✓ Appliquer</button>
+      <button id="ai-regen" class="btn btn-outline" data-i18n="ai.regen">↻ Régénérer</button>
+      <button id="ai-copy-out" class="btn btn-ghost" data-i18n="ai.copyOut">Copier le résultat</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

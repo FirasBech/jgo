@@ -1,0 +1,15 @@
+{
+  "name": "Career Dashboard",
+  "short_name": "Career",
+  "description": "Local job-search dashboard: CV builder, ATS check, application tracker, AI tailoring, and a live job radar.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f0f2f7",
+  "theme_color": "#1e3a5f",
+  "lang": "en",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# secrets & local config (never commit your keys)
+.env
+*.local
+
+# local data snapshots written by the bridge
+bridge/backups/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
