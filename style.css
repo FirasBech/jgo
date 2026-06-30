@@ -871,7 +871,12 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .job-card-top { display: flex; align-items: center; justify-content: space-between; }
 .job-src { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; color: var(--sc); background: color-mix(in srgb, var(--sc) 14%, transparent); }
 .job-age { font-size: 11px; color: var(--muted); }
-.job-title { font-size: 13.5px; font-weight: 700; line-height: 1.35; color: var(--text); }
+.job-title { font-size: 13.5px; font-weight: 700; line-height: 1.35; color: var(--text);
+  background: none; border: none; padding: 0; margin: 0; text-align: left; width: 100%;
+  font-family: inherit; cursor: pointer; }
+.job-title:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.job-title:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
+.job-card-clickable { cursor: pointer; }
 .job-company { font-size: 12px; color: var(--muted); }
 .job-loc { color: var(--text); }
 .job-tags { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -906,6 +911,42 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .radar-cache { font-size: 11px; color: var(--muted); font-style: italic; }
 .radar-srcerr { font-size: 11.5px; color: #b07800; background: rgba(240,165,0,.1); border: 1px solid rgba(240,165,0,.25); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
 [data-theme="dark"] .radar-srcerr { color: #f0b544; }
+
+/* ── Radar job detail side panel (slide-in drawer) ──────────────────────────── */
+.radar-panel-overlay {
+  position: fixed; inset: 0; z-index: 1400;
+  background: rgba(20,22,40,.45);
+  display: flex; justify-content: flex-end;
+  opacity: 0; transition: opacity .22s var(--ease);
+}
+.radar-panel-overlay.open { opacity: 1; }
+.radar-panel {
+  background: var(--card); width: 470px; max-width: 92vw; height: 100%;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .25s var(--ease);
+}
+.radar-panel-overlay.open .radar-panel { transform: translateX(0); }
+.radar-panel-head { padding: 18px 44px 14px 20px; border-bottom: 1px solid var(--border); position: relative; }
+.radar-panel-head h2 { font-size: 17px; font-weight: 700; line-height: 1.32; margin: 0 0 5px; }
+.radar-panel-co { font-size: 12.5px; color: var(--muted); }
+.radar-panel-x { position: absolute; top: 14px; right: 14px; background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer; line-height: 1; padding: 4px; }
+.radar-panel-x:hover { color: var(--text); }
+.radar-panel-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 20px 0; }
+.radar-panel-body { flex: 1; overflow-y: auto; padding: 8px 20px 18px; }
+.radar-panel-sec { margin-top: 16px; }
+.radar-panel-sec h4 { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
+.radar-panel-desc { font-size: 13px; line-height: 1.65; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.radar-panel-nodesc { color: var(--muted); font-style: italic; }
+.job-tag-have { border-color: rgba(39,174,96,.5); color: #1e7e44; background: rgba(39,174,96,.09); }
+[data-theme="dark"] .job-tag-have { color: #52c788; background: rgba(39,174,96,.16); }
+.radar-panel-reason { margin-top: 14px; background: rgba(123,77,255,.08); border: 1px solid rgba(123,77,255,.2); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; color: var(--text); }
+.radar-panel-actions { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.radar-panel-actions .btn { flex: 1; min-width: 120px; text-decoration: none; justify-content: center; text-align: center; }
+.radar-panel-actions .job-tracked-badge { flex: 1; min-width: 120px; text-align: center; padding: 8px; align-self: center; }
+@media (max-width: 560px) { .radar-panel { width: 100%; max-width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .radar-panel-overlay, .radar-panel { transition: none; }
+}
 
 /* Radar insights panel: result summary + skill demand/gaps + AI market read. */
 .radar-ins { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); padding: 10px 12px; margin: 2px 0 14px; }

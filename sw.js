@@ -1,7 +1,7 @@
 /* J.GO — service worker (offline app shell).
    Caches only the static front-end. The bridge (localhost:8787) and the public
    job APIs are a different origin and are always passed through to the network. */
-const CACHE = 'career-dash-v2';
+const CACHE = 'career-dash-v3';
 const ASSETS = ['.', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {

@@ -113,8 +113,11 @@ const Store = (() => {
     try {
       const raw = localStorage.getItem(KEY);
       _data = raw ? JSON.parse(raw) : _clone(DEFAULT);
-    } catch { _data = _clone(DEFAULT); }
-    _migrate();
+      _migrate();   // inside the try: a corrupt store that survives JSON.parse but breaks
+    } catch {       // migration falls back to a clean default instead of white-screening boot
+      _data = _clone(DEFAULT);
+      _migrate();
+    }
   }
 
   // Backfill keys added in later versions so old saved data keeps working
@@ -205,9 +208,14 @@ const Store = (() => {
 
 /* ── Utilities ─────────────────────────────────────────────────── */
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Only ever emit a base64 image data-URL for the CV photo. Blocks a crafted backup
+// import from injecting an onerror= breakout or pointing src at an external URL.
+function cvPhotoSrc(p) { return /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]*$/i.test(p || '') ? String(p) : ''; }
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+// LOCAL calendar date (yyyy-mm-dd). NOT toISOString() — that's UTC, which stamps the wrong
+// day and mis-flags "due today" follow-ups near midnight for non-UTC users.
+function todayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
 // Coerce any stored date to ISO yyyy-mm-dd. Handles ISO, fr-FR dd/mm/yyyy, and Date-parsable strings.
 function normalizeDate(s) {
@@ -307,6 +315,9 @@ const I18N = {
     'radar.notLaunched': 'Lancez une recherche pour afficher des offres en direct.',
     'radar.selectSrc': 'Sélectionnez au moins une source.',
     'radar.adapt': '🚀 Adapter', 'radar.view': '🔗 Voir',
+    'radar.openTip': 'Voir le détail de l’offre', 'radar.panelDesc': '📋 Description complète',
+    'radar.panelNoDesc': 'Cette source ne fournit pas de description. Ouvrez l’offre originale pour les détails.',
+    'radar.panelOpen': '🔗 Ouvrir l’offre originale', 'radar.panelMatched': '🧩 Compétences en commun',
     'radar.offer1': 'offre', 'radar.offerN': 'offres', 'radar.internSuffix': ' · hors senior',
     'radar.loadedToast': '🚀 Offre chargée dans Quick Apply',
     'radar.save': '＋ Suivre', 'radar.saveTip': 'Ajouter au tracker (Wishlist)', 'radar.tracked': '✓ Suivi', 'radar.trackedTip': 'Déjà dans le tracker',
@@ -586,6 +597,9 @@ const I18N = {
     'radar.notLaunched': 'Run a search to show live jobs.',
     'radar.selectSrc': 'Select at least one source.',
     'radar.adapt': '🚀 Tailor', 'radar.view': '🔗 View',
+    'radar.openTip': 'View job details', 'radar.panelDesc': '📋 Full description',
+    'radar.panelNoDesc': 'This source provides no description. Open the original posting for details.',
+    'radar.panelOpen': '🔗 Open original posting', 'radar.panelMatched': '🧩 Matching skills',
     'radar.offer1': 'job', 'radar.offerN': 'jobs', 'radar.internSuffix': ' · junior-friendly',
     'radar.loadedToast': '🚀 Job loaded into Quick Apply',
     'radar.save': '＋ Save', 'radar.saveTip': 'Add to tracker (Wishlist)', 'radar.tracked': '✓ Tracked', 'radar.trackedTip': 'Already in tracker',
@@ -912,7 +926,7 @@ const AI = {
       await this._run();
     } catch(e) {
       console.error('AI.assist error:', e);
-      toast('⚠ Erreur IA : ' + e.message);
+      toast(t('ai.unexpectedPre') + e.message);
     }
   },
 
@@ -1091,8 +1105,8 @@ function cvSkillMatchers() {
   cvQuery().split(/\s+/).forEach(add);
   (cv.projects || []).slice(0, 8).forEach(p => (p.tech || '').split(/[,/]/).forEach(add));
   return [...terms].map(t => {
-    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp((/^\w/.test(t) ? '\\b' : '') + esc + (/\w$/.test(t) ? '\\b' : ''), 'i');
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');   // regex-escape (NOT the global HTML esc())
+    const re = new RegExp((/^\w/.test(t) ? '\\b' : '') + escaped + (/\w$/.test(t) ? '\\b' : ''), 'i');
     return { t, re };
   });
 }
@@ -1772,14 +1786,14 @@ function renderTagsRows(tags) {
 function bindTagsTable() {
   document.querySelectorAll('.td-inline').forEach(inp => {
     inp.addEventListener('change', () => {
-      const d = Store.get();
-      const i = +inp.dataset.i;
-      d.tags[i][inp.dataset.f] = inp.value.trim().replace(/\s/g, '_').toLowerCase() === inp.dataset.f && inp.dataset.f === 'key'
-        ? inp.value.trim().replace(/\s+/g,'_').toLowerCase()
-        : inp.value;
-      if (inp.dataset.f === 'key') {
-        d.tags[i].key = inp.value.trim().replace(/[\s@]/g,'_').toLowerCase();
-        inp.value = d.tags[i].key;
+      const tag = Store.get().tags[+inp.dataset.i];
+      if (!tag) return;                  // row was removed/re-rendered — ignore the stale event
+      const f = inp.dataset.f;
+      if (f === 'key') {
+        tag.key = inp.value.trim().replace(/[\s@]/g, '_').toLowerCase();   // keys must be @-safe slugs
+        inp.value = tag.key;             // reflect the normalized value back into the field
+      } else {
+        tag[f] = inp.value;
       }
       Store.save();
     });
@@ -2064,7 +2078,8 @@ function renderCVEditor(section) {
   let html = '';
 
   if (section === 'personal') {
-    const hasPhoto = !!cv.personal.photo;
+    const photo = cvPhotoSrc(cv.personal.photo);
+    const hasPhoto = !!photo;
     html = `<h3>${t('profile.personalInfo')}</h3>
       <div class="fr" style="align-items:flex-start;gap:20px">
         <div style="flex:1">
@@ -2082,7 +2097,7 @@ function renderCVEditor(section) {
         </div>
         <div class="photo-upload-box">
           <div class="photo-preview" id="cv-photo-preview">
-            ${hasPhoto ? `<img src="${cv.personal.photo}" alt="Photo">` : '<span class="photo-placeholder">📷</span>'}
+            ${hasPhoto ? `<img src="${photo}" alt="Photo">` : '<span class="photo-placeholder">📷</span>'}
           </div>
           <label class="btn btn-sm btn-outline" style="cursor:pointer;margin-top:8px;display:block;text-align:center">
             ${hasPhoto ? t('cv.photoChange') : t('cv.photoAdd')}
@@ -2485,7 +2500,7 @@ function bindCVEditor(section) {
           title: t('cv.aiProjTitle'),
           prompt: Prompts.cvRewrite('project description', current),
           model: AI.SMART,
-          onApply: (text) => { if (ta) { ta.value = text; refreshCVPreview(); } },
+          onApply: (text) => { if (ta) { ta.value = text.trim(); liveUpdate(); } },   // liveUpdate autosaves; refreshCVPreview alone would lose the edit
         });
       });
     });
@@ -2747,15 +2762,16 @@ function renderCVDoc(cv) {
 
   const contactParts = [p.location, p.email, p.phone, p.linkedin, p.github].filter(Boolean);
   const hiddenE = cv.hiddenEntries || [];
+  const photo = cvPhotoSrc(p.photo);
 
-  let html = p.photo ? `
+  let html = photo ? `
     <div class="cv-d-header">
       <div class="cv-d-header-left">
         <h1>${esc(p.name)}</h1>
         <div class="cv-d-title">${esc(p.title)}</div>
         <div class="cv-d-contact">${contactParts.map(c => `<span>${esc(c)}</span>`).join('')}</div>
       </div>
-      <img src="${p.photo}" alt="Photo" class="cv-d-photo">
+      <img src="${photo}" alt="Photo" class="cv-d-photo">
     </div>` : `
     <h1>${esc(p.name)}</h1>
     <div class="cv-d-title">${esc(p.title)}</div>
@@ -3117,6 +3133,7 @@ function viewLetterEditor(id) {
     const d = Store.get();
     const l = d.letters.find(x => x.id === currentLetterId);
     if (!l) return;
+    saveLetter(currentLetterId);   // flush in-progress edits (autosave is debounced) before the re-render drops them
     const idx = Math.min(afterIdx, l.paragraphs.length);
     l.paragraphs.splice(idx, 0, '');
     Store.save();
@@ -3127,6 +3144,7 @@ function viewLetterEditor(id) {
     const d = Store.get();
     const l = d.letters.find(x => x.id === currentLetterId);
     if (!l || l.paragraphs.length <= 1) return;
+    saveLetter(currentLetterId);   // flush in-progress edits before the re-render so other paragraphs aren't lost
     l.paragraphs.splice(idx, 1);
     Store.save();
     viewLetterEditor(currentLetterId);
@@ -3330,12 +3348,15 @@ ${l.paragraphs.map(p => `<p class="para">${esc(p)}</p>`).join('')}
   },
 };
 
-function _printWin(html) {
+function _printWin(html, filename) {
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) { toast(t('common.popupBlocked')); return; }
   win.document.open();
   win.document.write(html);
   win.document.close();
+  // Browsers use the document title as the default "Save as PDF" filename — so the
+  // intended name (passed by cv()/letter()) is actually applied instead of dropped.
+  if (filename) { try { win.document.title = String(filename).replace(/\.pdf$/i, ''); } catch {} }
   win.focus();
   setTimeout(() => { try { win.print(); } catch(e){} }, 600);
 }
@@ -4462,7 +4483,7 @@ function renderRadarFeed() {
         const i = _radar.jobs.indexOf(j);
         const isTracked = tracked.has((j.url || '').trim());
         return `
-        <div class="job-card${isTracked?' job-tracked':''}${j.aiScore!=null?' job-matched':''}">
+        <div class="job-card job-card-clickable${isTracked?' job-tracked':''}${j.aiScore!=null?' job-matched':''}" data-job-open="${i}">
           <div class="job-card-top">
             <span style="display:flex;align-items:center;gap:6px">
               <span class="job-src" style="--sc:${SOURCE_COLORS[j.source]||'#888'}">${esc(j.source)}</span>
@@ -4477,7 +4498,7 @@ function renderRadarFeed() {
               ${j.date ? `<span class="job-age">${jobAge(j.date)}</span>` : ''}
             </span>
           </div>
-          <div class="job-title">${esc(j.title)}</div>
+          <button type="button" class="job-title" data-job-title="${i}" title="${esc(t('radar.openTip'))}">${esc(j.title)}</button>
           <div class="job-company">${esc(j.company)}${j.location?` · <span class="job-loc">${esc(j.location)}</span>`:''}</div>
           ${j.salary?`<div class="job-salary">💰 ${esc(j.salary)}</div>`:''}
           ${j.aiReason?`<div class="job-reason">💡 ${esc(j.aiReason)}</div>`:''}
@@ -4498,6 +4519,17 @@ function renderRadarFeed() {
   });
   el.querySelectorAll('[data-job-save]').forEach(btn => {
     btn.addEventListener('click', () => radarSave(Number(btn.dataset.jobSave)));
+  });
+  // Open the detail side-panel — the title button is the accessible trigger; clicking
+  // anywhere else on the card (but not its action buttons/links) opens it too.
+  el.querySelectorAll('[data-job-title]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); openRadarPanel(_radar.jobs[Number(btn.dataset.jobTitle)]); });
+  });
+  el.querySelectorAll('.job-card-clickable').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('button, a')) return;   // let action buttons/links work normally
+      openRadarPanel(_radar.jobs[Number(card.dataset.jobOpen)]);
+    });
   });
   document.getElementById('radar-aimatch')?.addEventListener('click', radarAIMatch);
   document.getElementById('radar-market')?.addEventListener('click', radarMarketRead);
@@ -4708,6 +4740,125 @@ function radarSave(idx) {
   Store.save();
   toast(t('radar.savedToast2'));
   renderRadarFeed();   // refresh so the card flips to "tracked"
+}
+
+/* ── Job detail side panel (drawer) ──────────────────────────────────────────
+   Clicking a card slides in a right-hand panel with the full posting (description,
+   salary, CV-fit / AI-match breakdown, tags) so the user can read & act without
+   leaving the Radar — keeping the search results in place underneath. */
+let _radarPanelLastFocus = null;
+let _radarPanelEsc = null;
+function closeRadarPanel() {
+  const o = document.getElementById('radar-panel-overlay');
+  if (!o) return;
+  if (_radarPanelEsc) { document.removeEventListener('keydown', _radarPanelEsc); _radarPanelEsc = null; }
+  o.classList.remove('open');
+  const done = () => o.remove();
+  o.addEventListener('transitionend', done, { once: true });
+  setTimeout(done, 320);   // fallback if transitionend doesn't fire
+  if (_radarPanelLastFocus && document.contains(_radarPanelLastFocus)) {
+    try { _radarPanelLastFocus.focus(); } catch {}
+  }
+  _radarPanelLastFocus = null;
+}
+function openRadarPanel(j) {
+  if (!j) return;
+  const opener = document.activeElement;   // capture before closeRadarPanel() can move focus
+  closeRadarPanel();
+  _radarPanelLastFocus = opener;
+
+  // Resolve the live index at action time so Save/Tailor stay correct even if the
+  // feed is later re-sorted (e.g. by AI match).
+  const curIdx = () => _radar.jobs.indexOf(j);
+  const isTracked = () => trackedJobUrls().has((j.url || '').trim());
+  const matchColor = s => s >= 80 ? '#27ae60' : s >= 60 ? '#f0a500' : '#6c757d';
+  const fitColor = s => s >= 70 ? '#27ae60' : s >= 45 ? '#f0a500' : '#8a94a6';
+
+  const badges = `
+    <span class="job-src" style="--sc:${SOURCE_COLORS[j.source]||'#888'}">${esc(j.source)}</span>
+    ${j.lang&&j.lang!=='en'?`<span class="job-lang">${esc(j.lang.toUpperCase())}</span>`:''}
+    ${j._fit!=null?`<span class="job-fit" style="--fc:${fitColor(j._fit)}" title="${esc(t('radar.fitTip'))}">🧩 ${j._fit}%</span>`:''}
+    ${j.aiScore!=null?`<span class="job-match" style="--mc:${matchColor(j.aiScore)}" title="${esc(t('radar.matchTip'))}">🎯 ${j.aiScore}%</span>`:''}
+    ${j.visa?`<span class="job-visa" title="${esc(t('radar.visaTip'))}">${t('radar.visaBadge')}</span>`:''}
+    ${j.remote?`<span class="job-remote">${t('radar.remoteBadge')}</span>`:''}
+    ${j.salary?`<span class="job-salary">💰 ${esc(j.salary)}</span>`:''}
+    ${j.date?`<span class="job-age">${jobAge(j.date)}</span>`:''}`;
+
+  const matched = (j._fitMatched && j._fitMatched.length)
+    ? `<div class="radar-panel-sec"><h4>${t('radar.panelMatched')}</h4>
+        <div class="job-tags">${j._fitMatched.map(s=>`<span class="job-tag job-tag-have">${esc(prettySkill(s))}</span>`).join('')}</div></div>` : '';
+
+  const reason = j.aiReason
+    ? `<div class="radar-panel-reason">💡 ${esc(j.aiReason)}</div>` : '';
+
+  const desc = (j.description && j.description.trim())
+    ? `<div class="radar-panel-desc">${esc(j.description)}</div>`
+    : `<div class="radar-panel-desc radar-panel-nodesc">${t('radar.panelNoDesc')}</div>`;
+
+  const tags = (j.tags && j.tags.length)
+    ? `<div class="radar-panel-sec"><div class="job-tags">${j.tags.map(tag=>`<span class="job-tag">${esc(tag)}</span>`).join('')}</div></div>` : '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'radar-panel-overlay';
+  overlay.className = 'radar-panel-overlay';
+  overlay.innerHTML = `
+    <aside class="radar-panel" role="dialog" aria-modal="true" aria-labelledby="rp-title">
+      <div class="radar-panel-head">
+        <button class="radar-panel-x" id="rp-close" title="${esc(t('common.close'))}" aria-label="${esc(t('common.close'))}">✕</button>
+        <h2 id="rp-title">${esc(j.title)}</h2>
+        <div class="radar-panel-co">${esc(j.company)}${j.location?` · <span class="job-loc">${esc(j.location)}</span>`:''}</div>
+      </div>
+      <div class="radar-panel-badges">${badges}</div>
+      <div class="radar-panel-body">
+        ${reason}
+        ${matched}
+        ${tags}
+        <div class="radar-panel-sec"><h4>${t('radar.panelDesc')}</h4>${desc}</div>
+      </div>
+      <div class="radar-panel-actions" id="rp-actions"></div>
+    </aside>`;
+  document.body.appendChild(overlay);
+
+  // Build the action row (re-renderable so the Save→Tracked flip shows live).
+  const renderActions = () => {
+    const acts = overlay.querySelector('#rp-actions');
+    acts.innerHTML = `
+      <button class="btn btn-ai" id="rp-adapt">${t('radar.adapt')}</button>
+      ${isTracked()
+        ? `<span class="job-tracked-badge" title="${esc(t('radar.trackedTip'))}">${t('radar.tracked')}</span>`
+        : `<button class="btn btn-outline" id="rp-save">${t('radar.save')}</button>`}
+      <a href="${esc(j.url)}" target="_blank" rel="noopener" class="btn btn-outline">${t('radar.panelOpen')}</a>`;
+    acts.querySelector('#rp-adapt').addEventListener('click', () => { const i = curIdx(); if (i < 0) return; closeRadarPanel(); radarAdapt(i); });
+    acts.querySelector('#rp-save')?.addEventListener('click', () => {
+      const i = curIdx(); if (i < 0) return;
+      radarSave(i);          // pushes to tracker + re-renders the feed underneath
+      renderActions();       // flip this panel's button to "Tracked"
+    });
+  };
+  renderActions();
+
+  overlay.querySelector('#rp-close').addEventListener('click', closeRadarPanel);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeRadarPanel(); });
+  // Esc closes; Tab is trapped inside the panel (it's aria-modal) so focus can't
+  // wander into the feed behind it.
+  _radarPanelEsc = e => {
+    if (e.key === 'Escape') { closeRadarPanel(); return; }
+    if (e.key !== 'Tab') return;
+    const f = overlay.querySelectorAll('button, a[href]');
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  document.addEventListener('keydown', _radarPanelEsc);
+
+  // Commit the off-screen start state (so the slide-in actually animates), then
+  // animate in + move focus to the panel for keyboard/SR users.
+  void overlay.offsetWidth;
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    overlay.querySelector('#rp-close')?.focus();
+  });
 }
 
 function viewRadar() {
