@@ -121,6 +121,7 @@ const Store = (() => {
   function _migrate() {
     if (!_data.settings)     _data.settings = _clone(DEFAULT.settings);
     if (!_data.applications) _data.applications = [];
+    if (!Array.isArray(_data.tags)) _data.tags = _clone(DEFAULT.tags);   // profile @-tags (used by profileEnrich + Profile view)
     // Proactive Radar: saved searches + seen-jobs memory for "new since last visit".
     if (!_data.radar)        _data.radar = { saved: [], seen: {}, newCount: 0, autoMatch: false };
     if (!_data.radar.saved)  _data.radar.saved = [];
@@ -129,6 +130,12 @@ const Store = (() => {
     if (!_data.radar.regions) _data.radar.regions = [];
     if (_data.radar.lastQuery === undefined) _data.radar.lastQuery = '';   // remembers the last search
     if (!_data.cv)           _data.cv = _clone(DEFAULT.cv);
+    // Normalize core CV shape so a partial/imported profile can't crash the builder, ATS or audit.
+    if (!_data.cv.personal)                 _data.cv.personal  = _clone(DEFAULT.cv.personal);
+    if (!Array.isArray(_data.cv.education)) _data.cv.education  = _clone(DEFAULT.cv.education);
+    if (!Array.isArray(_data.cv.skills))    _data.cv.skills     = _clone(DEFAULT.cv.skills);
+    if (!Array.isArray(_data.cv.projects))  _data.cv.projects   = [];
+    if (!Array.isArray(_data.cv.languages)) _data.cv.languages  = _clone(DEFAULT.cv.languages);
     if (_data.cv.summary === undefined)      _data.cv.summary = DEFAULT.cv.summary;
     if (!_data.cv.certifications) _data.cv.certifications = [];
     if (!_data.cv.achievements)   _data.cv.achievements = [];
@@ -166,7 +173,13 @@ const Store = (() => {
     });
   }
 
-  function replaceAll(obj) { _data = obj; _migrate(); save(); }
+  // Roll back to the previous good state if migrating an imported object throws,
+  // so a malformed backup can never corrupt the live in-memory session.
+  function replaceAll(obj) {
+    const prev = _data;
+    try { _data = obj; _migrate(); save(); }
+    catch (e) { _data = prev; throw e; }
+  }
 
   function save() {
     try {
@@ -322,6 +335,7 @@ const I18N = {
     'radar.searchSaved': '★ Recherche suivie', 'radar.savedAlready': 'Déjà dans vos recherches suivies',
     'radar.removeSaved': 'Retirer', 'radar.checkNew': 'Vérifier', 'radar.checkingNew': '⏳ Recherche des nouveautés…',
     'radar.newWord': 'nouvelle(s) offre(s)', 'radar.noNew': '✓ Aucune nouveauté', 'radar.noBridgeShort': 'ℹ Bridge éteint — impossible de vérifier',
+    'radar.newAcross': 'dans vos recherches suivies — cliquez pour les ouvrir :', 'radar.boardsQuery': 'Ces sites recherchent :',
     'radar.newBadge': 'NOUVEAU', 'radar.newTip': 'Offre nouvelle depuis votre dernière visite',
     'radar.autoMatch': 'Auto-trier (CV)',
     'radar.helpSaved': "<strong>Recherches suivies</strong> : ★ Suivre enregistre une recherche ; un badge sur « Job Radar » compte les offres nouvelles depuis votre dernière visite (badge NOUVEAU sur les cartes).",
@@ -337,6 +351,12 @@ const I18N = {
     'radar.aiRanked': '🎯 Trié selon votre CV', 'radar.aiClear': '✕ Effacer',
     'radar.aiNeedJobs': "⚠ Lancez d'abord une recherche", 'radar.matchTip': 'Adéquation avec votre profil',
     'radar.fitTip': 'Correspondance avec les compétences de votre CV',
+    'radar.insFitLabel': 'Adéquation CV', 'radar.insStrong': 'forte', 'radar.insPartial': 'moyenne', 'radar.insLow': 'faible', 'radar.insAvg': 'moy.',
+    'radar.insRemote': 'remote', 'radar.insVisa': 'visa', 'radar.insSalary': 'salaire affiché',
+    'radar.insHave': 'Vous avez', 'radar.insMissing': 'À ajouter / apprendre', 'radar.insNoSkills': 'Aucune compétence technique nette détectée dans ces offres.',
+    'radar.insMarket': '✨ Analyse du marché (Claude)', 'radar.insMarketRun': '⏳ Lecture du marché…', 'radar.insMarketHint': 'Claude lit les offres chargées et résume tendances, compétences demandées et conseils pour votre profil.',
+    'radar.skTip': 'Cliquez pour agir sur cette compétence', 'radar.skFind': '🔍 Voir les offres', 'radar.skLearn': '🎓 Apprendre', 'radar.skAddCv': "➕ Je l'ai — ajouter au CV",
+    'radar.skAddedToast': 'ajouté à votre CV', 'radar.skNoCat': '⚠ Aucune catégorie de compétences dans le CV', 'radar.skDup': 'ℹ Déjà dans votre CV',
     'radar.helpAi': "<strong>✨ Trier selon mon CV</strong> : Claude classe les offres ci-dessus selon votre profil (score d'adéquation + raison). Nécessite le bridge, sinon mode copier-coller.",
     'age.today': "aujourd'hui", 'age.yesterday': 'hier', 'age.days': 'j', 'age.months': 'mois',
     // ── Today command center + bridge status ──
@@ -445,7 +465,8 @@ const I18N = {
     // ── Tracker / statuses ──
     'common.close': 'Fermer',
     'status.wishlist': 'Souhaits', 'status.applied': 'Postulé', 'status.interview': 'Entretien', 'status.offer': 'Offre', 'status.rejected': 'Refusé',
-    'tracker.manualAdd': '+ Manuel', 'tracker.position': 'Poste', 'tracker.positionPh': 'Stage de perfectionnement — ...',
+    'tracker.manualAdd': '+ Manuel',
+    'tracker.emptyTitle': 'Votre tracker est vide', 'tracker.emptyBody': "Le Tracker est votre pipeline personnel de candidatures — il ne se remplit pas tout seul. Ajoutez des offres depuis le Radar, via Quick Apply, ou manuellement.", 'tracker.emptyRadar': '🛰 Parcourir le Radar', 'tracker.emptyApply': '🚀 Quick Apply', 'tracker.emptyManual': '+ Ajouter manuellement', 'tracker.emptyHint': "Astuce : sur le Radar, cliquez « ＋ Suivre » sur une offre pour l'envoyer ici en wishlist.", 'tracker.position': 'Poste', 'tracker.positionPh': 'Stage de perfectionnement — ...',
     'tracker.status': 'Statut', 'tracker.dateApplied': 'Date candidature', 'tracker.dateFollowup': 'Date de relance', 'tracker.type': 'Type',
     'tracker.link': "Lien de l'offre", 'tracker.contact': 'Contact', 'tracker.contactPh': 'email / nom du recruteur',
     'tracker.salary': 'Salaire / Indemnité', 'tracker.salaryPh': 'ex: 400 DT/mois',
@@ -593,6 +614,7 @@ const I18N = {
     'radar.searchSaved': '★ Search tracked', 'radar.savedAlready': 'Already in your tracked searches',
     'radar.removeSaved': 'Remove', 'radar.checkNew': 'Check', 'radar.checkingNew': '⏳ Checking for new jobs…',
     'radar.newWord': 'new job(s)', 'radar.noNew': '✓ Nothing new', 'radar.noBridgeShort': "ℹ Bridge off — can't check",
+    'radar.newAcross': 'across your saved searches — click to open them:', 'radar.boardsQuery': 'These boards search:',
     'radar.newBadge': 'NEW', 'radar.newTip': 'New since your last visit',
     'radar.autoMatch': 'Auto-match (CV)',
     'radar.helpSaved': "<strong>Tracked searches</strong>: ★ Track saves a search; a badge on “Job Radar” counts jobs that are new since your last visit (NEW badge on cards).",
@@ -608,6 +630,12 @@ const I18N = {
     'radar.aiRanked': '🎯 Ranked by your CV', 'radar.aiClear': '✕ Clear',
     'radar.aiNeedJobs': '⚠ Run a search first', 'radar.matchTip': 'Fit with your profile',
     'radar.fitTip': 'Match with your CV skills',
+    'radar.insFitLabel': 'CV fit', 'radar.insStrong': 'strong', 'radar.insPartial': 'partial', 'radar.insLow': 'low', 'radar.insAvg': 'avg',
+    'radar.insRemote': 'remote', 'radar.insVisa': 'visa', 'radar.insSalary': 'with salary',
+    'radar.insHave': 'You have', 'radar.insMissing': 'To add / learn', 'radar.insNoSkills': 'No clear tech skills detected in these jobs.',
+    'radar.insMarket': '✨ Market read (Claude)', 'radar.insMarketRun': '⏳ Reading the market…', 'radar.insMarketHint': 'Claude reads the loaded jobs and summarizes trends, in-demand skills and advice for your profile.',
+    'radar.skTip': 'Click for actions on this skill', 'radar.skFind': '🔍 Find jobs', 'radar.skLearn': '🎓 Learn', 'radar.skAddCv': '➕ I have this — add to CV',
+    'radar.skAddedToast': 'added to your CV', 'radar.skNoCat': '⚠ No skills category in your CV', 'radar.skDup': 'ℹ Already in your CV',
     'radar.helpAi': "<strong>✨ Match to my CV</strong>: Claude ranks the jobs above by fit to your profile (match score + reason). Needs the bridge, otherwise copy-paste mode.",
     'age.today': 'today', 'age.yesterday': 'yesterday', 'age.days': 'd', 'age.months': 'mo',
     // ── Today command center + bridge status ──
@@ -716,7 +744,8 @@ const I18N = {
     // ── Tracker / statuses ──
     'common.close': 'Close',
     'status.wishlist': 'Wishlist', 'status.applied': 'Applied', 'status.interview': 'Interview', 'status.offer': 'Offer', 'status.rejected': 'Rejected',
-    'tracker.manualAdd': '+ Manual', 'tracker.position': 'Position', 'tracker.positionPh': 'Internship — ...',
+    'tracker.manualAdd': '+ Manual',
+    'tracker.emptyTitle': 'Your tracker is empty', 'tracker.emptyBody': "The Tracker is your personal application pipeline — it doesn't fill itself. Add jobs from the Radar, via Quick Apply, or manually.", 'tracker.emptyRadar': '🛰 Browse the Radar', 'tracker.emptyApply': '🚀 Quick Apply', 'tracker.emptyManual': '+ Add manually', 'tracker.emptyHint': 'Tip: on the Radar, click "＋ Track" on a job to send it here as a wishlist item.', 'tracker.position': 'Position', 'tracker.positionPh': 'Internship — ...',
     'tracker.status': 'Status', 'tracker.dateApplied': 'Application date', 'tracker.dateFollowup': 'Follow-up date', 'tracker.type': 'Type',
     'tracker.link': 'Job link', 'tracker.contact': 'Contact', 'tracker.contactPh': 'email / recruiter name',
     'tracker.salary': 'Salary / Stipend', 'tracker.salaryPh': 'e.g. 400 DT/month',
@@ -810,12 +839,13 @@ const AI = {
     } catch { return false; }
   },
 
-  async _generate(prompt, model, web) {
+  async _generate(prompt, model, web, fresh) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), web ? 305000 : 185000);   // web research can take minutes
     const payload = { prompt };
     if (model) payload.model = model;
     if (web) payload.web = true;
+    if (fresh) payload.fresh = true;   // bypass the bridge's response cache (Regenerate)
     const r = await fetch(this.BRIDGE + '/ai', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload), signal: ctrl.signal,
@@ -848,9 +878,25 @@ const AI = {
     return undefined;
   },
 
+  // Close the modal and return focus to whatever opened it (accessibility).
+  _close() {
+    const m = document.getElementById('ai-modal');
+    if (m) m.hidden = true;
+    const f = this._lastFocus;
+    if (f && typeof f.focus === 'function') { try { f.focus(); } catch {} }
+  },
+  // Visible, focusable controls inside the modal — for the Tab focus-trap.
+  _focusables() {
+    const m = document.getElementById('ai-modal');
+    if (!m) return [];
+    return [...m.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+      .filter(el => !el.disabled && el.offsetParent !== null);
+  },
+
   // Public entry. opts: { title, prompt, onApply?(text), model?, web? }
   async assist(opts) {
     this._ctx = opts;
+    this._lastFocus = document.activeElement;   // restore focus here on close
     // Each task starts at its own defaults: "Auto" model + the task's web setting.
     this._override = { model: '', web: !!opts.web };
     try {
@@ -862,6 +908,7 @@ const AI = {
       const sel = document.getElementById('ai-model'); if (sel) sel.value = 'auto';
       const web = document.getElementById('ai-web');   if (web) web.checked = !!opts.web;
       m.hidden = false;
+      setTimeout(() => { const c = document.getElementById('ai-close'); if (c) c.focus(); }, 0);   // move keyboard focus into the dialog
       await this._run();
     } catch(e) {
       console.error('AI.assist error:', e);
@@ -869,7 +916,7 @@ const AI = {
     }
   },
 
-  async _run() {
+  async _run(opts = {}) {
     const status = document.getElementById('ai-status');
     const badge  = document.getElementById('ai-mode-badge');
     const promptWrap = document.getElementById('ai-prompt-wrap');
@@ -897,7 +944,7 @@ const AI = {
           const model = this._override.model || this._ctx.model;
           const web = this._override.web;
           if (web) status.textContent = t('ai.researching');
-          const text = await this._generate(this._ctx.prompt, model, web);
+          const text = await this._generate(this._ctx.prompt, model, web, !!opts.fresh);
           out.value = text;
           toolbar.hidden = false;
           status.textContent = t('ai.generated');
@@ -954,17 +1001,28 @@ const AI = {
 
   init() {
     const m = document.getElementById('ai-modal');
-    document.getElementById('ai-close').addEventListener('click', () => m.hidden = true);
-    m.addEventListener('click', (e) => { if (e.target === m) m.hidden = true; });
+    document.getElementById('ai-close').addEventListener('click', () => this._close());
+    m.addEventListener('click', (e) => { if (e.target === m) this._close(); });
+    // Keyboard a11y: Esc closes; Tab cycles within the dialog (focus trap).
+    m.addEventListener('keydown', (e) => {
+      if (m.hidden) return;
+      if (e.key === 'Escape') { e.preventDefault(); this._close(); return; }
+      if (e.key === 'Tab') {
+        const f = this._focusables(); if (!f.length) return;
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
 
     document.getElementById('ai-apply').addEventListener('click', () => {
       const text = document.getElementById('ai-output').value.trim();
       if (!text) { toast(t('ai.noResult')); return; }
       if (this._ctx && this._ctx.onApply) this._ctx.onApply(text);
-      m.hidden = true;
+      this._close();
       toast(t('ai.applied'));
     });
-    document.getElementById('ai-regen').addEventListener('click', () => this._run());
+    document.getElementById('ai-regen').addEventListener('click', () => this._run({ fresh: true }));
     // Dynamic model picker + web-research toggle — change re-runs with the new setting.
     document.getElementById('ai-model')?.addEventListener('change', (e) => {
       this._override.model = e.target.value === 'auto' ? '' : e.target.value;
@@ -1106,9 +1164,9 @@ const Prompts = {
     const sections = {
       summary: cv.summary,
       experience: (cv.experience||[]).map(e=>`${e.position}@${e.company}: ${e.description}`).join('\n'),
-      education: cv.education.map(e=>`${e.degree} @ ${e.school} ${e.years}: ${e.description}`).join('\n'),
-      skills: cv.skills.map(s=>`${s.category}: ${Array.isArray(s.items)?s.items.filter(i=>!i.hidden).map(i=>i.text).join(', '):s.items}`).join('\n'),
-      projects: cv.projects.map(p=>`[${p.year}] ${p.title} (${p.tech}): ${p.description}`).join('\n'),
+      education: (cv.education||[]).map(e=>`${e.degree} @ ${e.school} ${e.years}: ${e.description}`).join('\n'),
+      skills: (cv.skills||[]).map(s=>`${s.category}: ${Array.isArray(s.items)?s.items.filter(i=>!i.hidden).map(i=>i.text).join(', '):s.items}`).join('\n'),
+      projects: (cv.projects||[]).map(p=>`[${p.year}] ${p.title} (${p.tech}): ${p.description}`).join('\n'),
       certifications: (cv.certifications||[]).map(c=>`${c.name} — ${c.issuer} ${c.year}`).join('\n'),
       achievements: (cv.achievements||[]).map(a=>a.text).join('\n'),
     };
@@ -1212,6 +1270,21 @@ const Prompts = {
       + `Return ONLY a JSON array (no markdown, no prose), best match first, at most 12 items, each:\n`
       + `{"i": <job number>, "score": <fit 0-100>, "reason": "<why it fits, in English, max 12 words>"}\n`
       + `Only include jobs that truly fit (score >= 50). Output nothing except the JSON array.`;
+  },
+
+  // Short, plain-text "read the market" summary over the jobs currently loaded in the Radar.
+  marketRead(jobs) {
+    const list = jobs.map((j, i) =>
+      `${i + 1}. ${j.title} — ${j.company}${j.location ? ' (' + j.location + ')' : ''}`
+      + (j.tags && j.tags.length ? ` [${j.tags.slice(0, 6).join(', ')}]` : '')
+    ).join('\n');
+    return `${profileBlurb()}\n\n`
+      + `Here are ${jobs.length} live job postings from a search for "${_radar.query}":\n${list}\n\n`
+      + `Give me a SHORT market read (max ~120 words, plain text, no markdown headings) for someone with MY profile:\n`
+      + `- the 3-4 skills or tools these roles most commonly require;\n`
+      + `- how well my current profile fits, and the single biggest gap to close;\n`
+      + `- one concrete next step (a skill to learn, a cert, or a way to position my CV).\n`
+      + `Be specific to THESE postings and honest. Write in ${_lang === 'fr' ? 'French' : 'English'}.`;
   },
 
   profileEnrich() {
@@ -1666,13 +1739,20 @@ function viewProfile() {
         if (!json) { toast(t('common.notParsable')); return; }
         if (json.newTags && Array.isArray(json.newTags)) {
           const tags = Store.get().tags;
+          let added = 0;
           json.newTags.forEach(nt => {
-            if (nt.key && !tags.find(t => t.key === nt.key)) tags.push(nt);
+            if (nt && nt.key && !tags.find(t => t.key === nt.key)) {
+              // Normalize: Claude can omit label/value → coerce so the tags table never renders "undefined".
+              tags.push({ key: String(nt.key), label: String(nt.label || nt.key), value: String(nt.value || '') });
+              added++;
+            }
           });
-          Store.save();
-          document.getElementById('tags-tbody').innerHTML = renderTagsRows(Store.get().tags);
-          bindTagsTable();
-          toast(`✅ ${json.newTags.length} ${t('profile.tagsAddedSuffix')}`);
+          if (added) {
+            Store.save();
+            document.getElementById('tags-tbody').innerHTML = renderTagsRows(Store.get().tags);
+            bindTagsTable();
+          }
+          toast(`✅ ${added} ${t('profile.tagsAddedSuffix')}`);   // report what was ACTUALLY added, not what Claude returned
         }
       },
     });
@@ -3278,21 +3358,47 @@ const TECH_PHRASES = [
   'firewall configuration','virtual machine','operating system','source control','design patterns','microservices',
 ];
 
+// Concrete tech-skill vocabulary for the Radar insights (what these jobs demand) and CV-gap
+// flagging. A detection dictionary spanning many areas — the user's CV decides have vs missing.
+const SKILL_VOCAB = [...new Set([
+  ...TECH_PHRASES,
+  'python','java','javascript','typescript','c++','c#','golang','rust','php','ruby','bash','powershell','sql','node.js','nodejs','react','angular','vue','.net','flutter',
+  'aws','azure','gcp','google cloud','docker','kubernetes','terraform','ansible','jenkins','gitlab','github','git','linux','windows server','vmware','nginx','prometheus','grafana','helm','openshift',
+  'cisco','juniper','tcp/ip','bgp','ospf','eigrp','vlan','vpn','ipsec','wireguard','dns','dhcp','sd-wan','mpls','routing','switching','load balancer','fortinet','palo alto','pfsense',
+  'firewall','siem','splunk','soc','ids','ips','edr','wireshark','nmap','burp suite','metasploit','kali','owasp','pentest','iam','zero trust','nist','iso 27001','ceh','oscp','crowdstrike',
+  'power bi','tableau','kafka','spark','mongodb','postgresql','mysql','redis','elasticsearch','graphql','ci/cd','agile','scrum','jira',
+])];
+
+// Display-case a detected (lowercase) skill before writing it into the CV, so it reads
+// professionally — known acronyms/brands cased correctly, everything else title-cased.
+const SKILL_CASE = {
+  'ci/cd':'CI/CD','tcp/ip':'TCP/IP','sd-wan':'SD-WAN','power bi':'Power BI','node.js':'Node.js','nodejs':'Node.js',
+  '.net':'.NET','c++':'C++','c#':'C#','iso 27001':'ISO 27001','aws':'AWS','gcp':'GCP','sql':'SQL','mysql':'MySQL',
+  'postgresql':'PostgreSQL','graphql':'GraphQL','php':'PHP','vpn':'VPN','dns':'DNS','dhcp':'DHCP','bgp':'BGP','ospf':'OSPF',
+  'eigrp':'EIGRP','vlan':'VLAN','mpls':'MPLS','ipsec':'IPsec','siem':'SIEM','soc':'SOC','ids':'IDS','ips':'IPS','edr':'EDR',
+  'iam':'IAM','nist':'NIST','ceh':'CEH','oscp':'OSCP','owasp':'OWASP','pfsense':'pfSense','openshift':'OpenShift',
+  'gitlab':'GitLab','github':'GitHub','vmware':'VMware',
+};
+function prettySkill(s) {
+  const k = String(s || '').toLowerCase().trim();
+  return SKILL_CASE[k] || k.replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function normText(s) { return ' ' + String(s||'').toLowerCase().replace(/[^a-z0-9+#./\-\s]/g,' ').replace(/\s+/g,' ') + ' '; }
 
 // Full CV text corpus for matching
 function cvFullText(cv) {
-  const parts = [cv.personal.title, cv.summary, cv.interests];
-  cv.education.forEach(e => parts.push(e.degree, e.school, e.description));
-  cv.skills.forEach(s => {
+  const parts = [(cv.personal||{}).title, cv.summary, cv.interests];
+  (cv.education||[]).forEach(e => parts.push(e.degree, e.school, e.description));
+  (cv.skills||[]).forEach(s => {
     parts.push(s.category);
     if (Array.isArray(s.items)) s.items.forEach(i => parts.push(i.text));
     else parts.push(s.items);
   });
-  cv.projects.forEach(p => parts.push(p.title, p.tech, p.description));
+  (cv.projects||[]).forEach(p => parts.push(p.title, p.tech, p.description));
   (cv.certifications||[]).forEach(c => parts.push(c.name, c.issuer));
   (cv.achievements||[]).forEach(a => parts.push(a.text));
-  cv.languages.forEach(l => parts.push(l.language));
+  (cv.languages||[]).forEach(l => parts.push(l.language));
   return normText(parts.filter(Boolean).join(' '));
 }
 
@@ -3300,12 +3406,13 @@ function cvFullText(cv) {
 function extractKeywords(jd) {
   const text = normText(jd);
   const found = new Map(); // keyword -> count
+  const phraseWords = new Set(); // component words of captured phrases — don't list them again on their own
 
   // multi-word tech phrases first
   TECH_PHRASES.forEach(ph => {
     const re = new RegExp('\\b' + ph.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'g');
     const m = text.match(re);
-    if (m) found.set(ph, m.length + 2); // weight phrases higher
+    if (m) { found.set(ph, m.length + 2); ph.split(/\s+/).forEach(w => phraseWords.add(w)); } // weight phrases higher
   });
 
   // single significant tokens
@@ -3315,7 +3422,7 @@ function extractKeywords(jd) {
     if (t.length < 3 || t.length > 30) return;
     if (STOPWORDS.has(t)) return;
     if (/^\d+$/.test(t)) return;
-    // skip if already part of a captured phrase
+    if (phraseWords.has(t)) return;   // skip if already part of a captured phrase
     found.set(t, (found.get(t) || 0) + 1);
   });
 
@@ -3468,7 +3575,7 @@ function viewTracker() {
         </div>
       </div>
 
-      ${apps.length ? renderTrackerInsights(apps) : ''}
+      ${apps.length ? `${renderTrackerInsights(apps)}
 
       <div class="trk-toolbar">
         <input type="text" id="trk-search" placeholder="${t('tracker.search')}" style="flex:1;max-width:320px">
@@ -3490,7 +3597,7 @@ function viewTracker() {
             </div>
           </div>`;
         }).join('')}
-      </div>
+      </div>` : renderTrackerEmpty()}
     </div>
   `);
 
@@ -3499,6 +3606,10 @@ function viewTracker() {
     form.style.display = form.style.display === 'none' ? 'block' : 'none';
   });
   document.getElementById('trk-cancel').addEventListener('click', () => form.style.display = 'none');
+  document.getElementById('trk-empty-add')?.addEventListener('click', () => {
+    form.style.display = 'block';
+    document.getElementById('trk-company')?.focus();
+  });
 
   document.getElementById('trk-save').addEventListener('click', () => {
     const company = document.getElementById('trk-company').value.trim();
@@ -3663,6 +3774,22 @@ function renderTrackerInsights(apps) {
         ${item(s.withAI, t('tracker.aiPkg'), '✨')}
       </div>
     </div>
+  </div>`;
+}
+
+// Friendly empty state: the Tracker is a manual pipeline, not an auto feed —
+// explain that and point the user to the ways jobs actually get in here.
+function renderTrackerEmpty() {
+  return `<div class="card trk-empty">
+    <div class="trk-empty-icon">🗂️</div>
+    <h3>${t('tracker.emptyTitle')}</h3>
+    <p>${t('tracker.emptyBody')}</p>
+    <div class="trk-empty-actions">
+      <button class="btn btn-accent" onclick="Router.go('#radar')">${t('tracker.emptyRadar')}</button>
+      <button class="btn btn-primary" onclick="Router.go('#apply')">${t('tracker.emptyApply')}</button>
+      <button class="btn btn-outline" id="trk-empty-add">${t('tracker.emptyManual')}</button>
+    </div>
+    <p class="trk-empty-hint">${t('tracker.emptyHint')}</p>
   </div>`;
 }
 
@@ -4055,30 +4182,33 @@ function bindApplyResults() {
 /* ════════════════════════════════════════════════════════════════
    VIEW: Job Radar — curated job board links
    ════════════════════════════════════════════════════════════════ */
+// Curated boards for markets the free live feed can't reach (Gulf, Ireland, on-site).
+// Links with a `q` template become query-aware: clicking them searches the user's CURRENT
+// Radar query ({q}=URL-encoded, {qs}=slug) instead of a hardcoded "network security".
 const JOB_BOARDS = [
   {
     group: '🇹🇳 Tunisia', links: [
       { name: 'Keejob — IT & Networks', url: 'https://www.keejob.com/offres-emploi/?sector=4', tags: ['net','sec'] },
-      { name: 'Bayt — Tunisia Network/Security', url: 'https://www.bayt.com/en/tunisia/jobs/network-security-jobs/', tags: ['net','sec'] },
+      { name: 'Bayt — Tunisia', url: 'https://www.bayt.com/en/tunisia/jobs/network-security-jobs/', q: 'https://www.bayt.com/en/tunisia/jobs/{qs}-jobs/', tags: ['net','sec'] },
       { name: 'TanitJobs — IT', url: 'https://tanitjobs.com/', tags: ['net','dev'] },
-      { name: 'LinkedIn — Network Security Tunisia', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20security&location=Tunisia', tags: ['sec'] },
+      { name: 'LinkedIn — Tunisia', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20security&location=Tunisia', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&location=Tunisia', tags: ['sec'] },
     ],
   },
   {
     group: '🌐 Gulf — English + Arabic', links: [
-      { name: 'Bayt — Network/Security (UAE)', url: 'https://www.bayt.com/en/uae/jobs/network-security-jobs/', tags: ['net','sec'] },
-      { name: 'Indeed UAE — Network Security', url: 'https://ae.indeed.com/jobs?q=network+security', tags: ['net','sec'] },
-      { name: 'LinkedIn — Cybersecurity (UAE)', url: 'https://www.linkedin.com/jobs/search/?keywords=cybersecurity&location=United%20Arab%20Emirates', tags: ['sec'] },
-      { name: 'LinkedIn — Network Engineer (Saudi)', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20engineer&location=Saudi%20Arabia', tags: ['net'] },
+      { name: 'Bayt — UAE', url: 'https://www.bayt.com/en/uae/jobs/network-security-jobs/', q: 'https://www.bayt.com/en/uae/jobs/{qs}-jobs/', tags: ['net','sec'] },
+      { name: 'Indeed UAE', url: 'https://ae.indeed.com/jobs?q=network+security', q: 'https://ae.indeed.com/jobs?q={q}', tags: ['net','sec'] },
+      { name: 'LinkedIn — UAE', url: 'https://www.linkedin.com/jobs/search/?keywords=cybersecurity&location=United%20Arab%20Emirates', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&location=United%20Arab%20Emirates', tags: ['sec'] },
+      { name: 'LinkedIn — Saudi', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20engineer&location=Saudi%20Arabia', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&location=Saudi%20Arabia', tags: ['net'] },
       { name: 'Naukrigulf — IT & Security', url: 'https://www.naukrigulf.com/', tags: ['net','sec'] },
     ],
   },
   {
     group: '🇮🇪 Ireland · 🇬🇧 UK · 🇨🇦 Canada', links: [
-      { name: 'Indeed Ireland — Network Security', url: 'https://ie.indeed.com/jobs?q=network+security', tags: ['net','sec'] },
-      { name: 'Indeed UK — Network Security', url: 'https://uk.indeed.com/jobs?q=network+security', tags: ['net','sec'] },
-      { name: 'Indeed Canada — Network Security', url: 'https://ca.indeed.com/jobs?q=network+security', tags: ['net','sec'] },
-      { name: 'LinkedIn — Security Engineer (Ireland)', url: 'https://www.linkedin.com/jobs/search/?keywords=security%20engineer&location=Ireland', tags: ['sec'] },
+      { name: 'Indeed Ireland', url: 'https://ie.indeed.com/jobs?q=network+security', q: 'https://ie.indeed.com/jobs?q={q}', tags: ['net','sec'] },
+      { name: 'Indeed UK', url: 'https://uk.indeed.com/jobs?q=network+security', q: 'https://uk.indeed.com/jobs?q={q}', tags: ['net','sec'] },
+      { name: 'Indeed Canada', url: 'https://ca.indeed.com/jobs?q=network+security', q: 'https://ca.indeed.com/jobs?q={q}', tags: ['net','sec'] },
+      { name: 'LinkedIn — Ireland', url: 'https://www.linkedin.com/jobs/search/?keywords=security%20engineer&location=Ireland', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&location=Ireland', tags: ['sec'] },
     ],
   },
   {
@@ -4087,19 +4217,27 @@ const JOB_BOARDS = [
       { name: 'Arbeitnow — Visa Sponsorship', url: 'https://www.arbeitnow.com/visa-sponsorship-jobs', tags: ['vis','dev'] },
       { name: 'Landing.jobs — Europe (visa filter)', url: 'https://landing.jobs/jobs?visa=true', tags: ['vis','dev'] },
       { name: 'Make it in Germany (English jobs)', url: 'https://www.make-it-in-germany.com/en/looking-for-foreign-professionals/jobs', tags: ['vis'] },
-      { name: 'LinkedIn — Cybersecurity + Visa Sponsorship', url: 'https://www.linkedin.com/jobs/search/?keywords=cybersecurity%20visa%20sponsorship', tags: ['vis','sec'] },
+      { name: 'LinkedIn — Visa Sponsorship', url: 'https://www.linkedin.com/jobs/search/?keywords=cybersecurity%20visa%20sponsorship', q: 'https://www.linkedin.com/jobs/search/?keywords={q}%20visa%20sponsorship', tags: ['vis','sec'] },
     ],
   },
   {
     group: '🔒 Network & Security — Remote / Global', links: [
-      { name: 'infosec-jobs.com — Security only', url: 'https://infosec-jobs.com/', tags: ['sec'] },
-      { name: 'LinkedIn — Network Security (Remote)', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20security&f_WT=2', tags: ['net','sec'] },
-      { name: 'Indeed — Network Security', url: 'https://www.indeed.com/jobs?q=network+security', tags: ['net','sec'] },
-      { name: 'LinkedIn — Cloud Security (Remote)', url: 'https://www.linkedin.com/jobs/search/?keywords=cloud%20security&f_WT=2', tags: ['cloud','sec'] },
+      { name: 'infosec-jobs.com — Security only', url: 'https://infosec-jobs.com/', q: 'https://infosec-jobs.com/?search={q}', tags: ['sec'] },
+      { name: 'LinkedIn — Remote', url: 'https://www.linkedin.com/jobs/search/?keywords=network%20security&f_WT=2', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&f_WT=2', tags: ['net','sec'] },
+      { name: 'Indeed — Global', url: 'https://www.indeed.com/jobs?q=network+security', q: 'https://www.indeed.com/jobs?q={q}', tags: ['net','sec'] },
+      { name: 'LinkedIn — Cloud Security (Remote)', url: 'https://www.linkedin.com/jobs/search/?keywords=cloud%20security&f_WT=2', q: 'https://www.linkedin.com/jobs/search/?keywords={q}&f_WT=2', tags: ['cloud','sec'] },
       { name: 'CyberSeek — Career Pathway', url: 'https://www.cyberseek.org/pathway.html', tags: ['sec'] },
     ],
   },
 ];
+
+// Fill a board link's query template with the current Radar query (else its default URL).
+function boardUrl(l) {
+  const q = (_radar.query || '').trim();
+  if (!l.q || !q) return l.url;
+  return l.q.replace('{q}', encodeURIComponent(q))
+            .replace('{qs}', q.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
+}
 
 const TAG_LABELS = { net:'Network', sec:'Security', cloud:'Cloud', dev:'Dev', vis:'Visa', int:'Internship', web:'Web', mob:'Mobile' };
 
@@ -4210,6 +4348,7 @@ async function radarCheckNew({ silent = true } = {}) {
     const alive = await AI._health();
     if (!alive) { radarSetNavBadge(rs.newCount || 0); if (!silent) toast(t('radar.noBridgeShort')); return; }
     const newUrls = new Set();
+    const bySearch = {};   // q → how many new jobs that saved search has (so the view can explain the badge)
     await Promise.all(rs.saved.slice(0, 8).map(async s => {
       try {
         const params = new URLSearchParams({ q: s.q, sources: ALL_SOURCE_KEYS.join(',') });
@@ -4217,12 +4356,18 @@ async function radarCheckNew({ silent = true } = {}) {
         if (s.visa) params.set('visa', '1');
         if (_radar.english) params.set('english', '1');
         if (_radar.regions.length) params.set('regions', _radar.regions.join(','));
-        const r = await fetch(AI.BRIDGE + '/jobs?' + params);
-        const j = await r.json();
-        (j.jobs || []).forEach(job => { if (job.url && !rs.seen[job.url]) newUrls.add(job.url); });
+        const ctrl = new AbortController();
+        const tm = setTimeout(() => ctrl.abort(), 12000);   // never let a hung fetch freeze the badge check
+        let j;
+        try { const r = await fetch(AI.BRIDGE + '/jobs?' + params, { signal: ctrl.signal }); j = await r.json(); }
+        finally { clearTimeout(tm); }
+        let c = 0;
+        (j.jobs || []).forEach(job => { if (job.url && !rs.seen[job.url]) { newUrls.add(job.url); c++; } });
+        if (c) bySearch[s.q] = c;
       } catch {}
     }));
     rs.newCount = newUrls.size;
+    rs.newBySearch = bySearch;
     Store.save();
     radarSetNavBadge(rs.newCount);
     if (!silent) toast(rs.newCount ? '🔔 ' + rs.newCount + ' ' + t('radar.newWord') : t('radar.noNew'));
@@ -4263,6 +4408,7 @@ async function radarFetch() {
     _radar.cached = !!j.cached;
     _radar.fetched = true;
     _radar.aiRanked = false;   // fresh results — clear any previous AI ranking
+    _radar.market = '';        // clear any previous AI market read
     if (!_radar.jobs.length) _radar.error = t('radar.none');
   } catch (e) {
     _radar.jobs = []; _radar.errors = [];
@@ -4309,6 +4455,7 @@ function renderRadarFeed() {
       </span>` : ''}
     </div>
     ${_radar.errors && _radar.errors.length ? `<div class="radar-srcerr">${t('radar.sourceErr')} ${esc(_radar.errors.map(e=>String(e).split(':')[0]).join(', '))}</div>` : ''}
+    ${renderRadarInsights(shown)}
     ${shown.length === 0 ? `<div class="radar-msg">${t('radar.none')}</div>` : ''}
     <div class="job-grid">
       ${shown.map((j) => {
@@ -4353,11 +4500,139 @@ function renderRadarFeed() {
     btn.addEventListener('click', () => radarSave(Number(btn.dataset.jobSave)));
   });
   document.getElementById('radar-aimatch')?.addEventListener('click', radarAIMatch);
+  document.getElementById('radar-market')?.addEventListener('click', radarMarketRead);
+  el.querySelectorAll('.ins-skill[data-skill]').forEach(b => {
+    b.addEventListener('click', e => { e.stopPropagation(); radarSkillMenu(b); });
+  });
   document.getElementById('radar-aiclear')?.addEventListener('click', () => {
     _radar.jobs.forEach(j => { j.aiScore = null; j.aiReason = ''; });
     _radar.aiRanked = false;
     renderRadarFeed();
   });
+}
+
+// ── Radar insights: read the whole loaded result set (free, client-side) ──────────
+// Which in-demand skills appear across the loaded postings, split into the ones the
+// user already has (in their CV) vs the ones they're missing (CV gaps).
+function radarSkillDemand(shown) {
+  const texts = shown.map(j => normText((j.title || '') + ' ' + (j.tags || []).join(' ') + ' ' + (j.description || '')));
+  const cvText = cvFullText(Store.get().cv);
+  const have = [], missing = [];
+  SKILL_VOCAB.forEach(sk => {
+    const needle = ' ' + sk + ' ';
+    let df = 0;                       // document frequency = how many jobs mention it
+    for (const tx of texts) if (tx.includes(needle)) df++;
+    if (!df) return;
+    (cvText.includes(needle) ? have : missing).push({ sk, df });
+  });
+  have.sort((a, b) => b.df - a.df); missing.sort((a, b) => b.df - a.df);
+  return { have: have.slice(0, 8), missing: missing.slice(0, 10) };
+}
+
+// Summary strip + skill demand/gaps + an on-demand AI market read button.
+function renderRadarInsights(shown) {
+  if (!shown.length) return '';
+  const fits = shown.map(j => j._fit).filter(v => v != null);
+  const strong = fits.filter(v => v >= 70).length;
+  const partial = fits.filter(v => v >= 45 && v < 70).length;
+  const low = fits.filter(v => v < 45).length;
+  const avg = fits.length ? Math.round(fits.reduce((a, b) => a + b, 0) / fits.length) : 0;
+  const remote = shown.filter(j => j.remote).length;
+  const visa = shown.filter(j => j.visa).length;
+  const salary = shown.filter(j => j.salary).length;
+  const loc = new Map();
+  shown.forEach(j => { const k = (j.location || '').trim() || (j.remote ? t('radar.remoteBadge') : '—'); loc.set(k, (loc.get(k) || 0) + 1); });
+  const topLoc = [...loc.entries()].filter(([k]) => k !== '—').sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const dem = radarSkillDemand(shown);
+  const chip = (d, cls, have) => `<button type="button" class="ins-skill ${cls}" data-skill="${esc(d.sk)}" data-have="${have ? 1 : 0}" title="${esc(t('radar.skTip'))}">${esc(d.sk)} <b>${d.df}</b></button>`;
+
+  return `<div class="radar-ins">
+    <div class="radar-ins-row">
+      <span class="ins-stat"><span class="ins-fitlbl">${t('radar.insFitLabel')}</span>
+        <span class="ins-dot" style="--c:#27ae60"></span>${strong} ${t('radar.insStrong')}
+        <span class="ins-dot" style="--c:#f0a500"></span>${partial} ${t('radar.insPartial')}
+        <span class="ins-dot" style="--c:#8a94a6"></span>${low} ${t('radar.insLow')}
+        · ${t('radar.insAvg')} <b>${avg}%</b></span>
+      <span class="ins-sep"></span>
+      <span class="ins-stat">🌍 <b>${remote}</b> ${t('radar.insRemote')}</span>
+      <span class="ins-stat">🛂 <b>${visa}</b> ${t('radar.insVisa')}</span>
+      <span class="ins-stat">💰 <b>${salary}</b> ${t('radar.insSalary')}</span>
+      ${topLoc.length ? `<span class="ins-sep"></span><span class="ins-stat">📍 ${topLoc.map(([k, n]) => `${esc(k)} (${n})`).join(' · ')}</span>` : ''}
+    </div>
+    ${(dem.have.length || dem.missing.length) ? `
+    <div class="radar-ins-skills">
+      ${dem.have.length ? `<div class="ins-skill-line"><span class="ins-skill-lbl">✅ ${t('radar.insHave')}</span>${dem.have.map(d => chip(d, 'ins-have', true)).join('')}</div>` : ''}
+      ${dem.missing.length ? `<div class="ins-skill-line"><span class="ins-skill-lbl">⬜ ${t('radar.insMissing')}</span>${dem.missing.map(d => chip(d, 'ins-miss', false)).join('')}</div>` : ''}
+    </div>` : `<div class="radar-ins-skills text-muted text-sm">${t('radar.insNoSkills')}</div>`}
+    <div class="radar-ins-market">
+      <button class="btn btn-xs btn-ai" id="radar-market">${t('radar.insMarket')}</button>
+      <span class="ins-market-hint">${t('radar.insMarketHint')}</span>
+      <div id="radar-market-out" class="ins-market-out"${_radar.market ? '' : ' hidden'}>${_radar.market ? esc(_radar.market) : ''}</div>
+    </div>
+  </div>`;
+}
+
+// Click a skill chip → small action menu (find jobs / learn / add a missing skill to the CV).
+function radarSkillMenu(btn) {
+  document.querySelectorAll('.sk-menu').forEach(m => m.remove());   // close any open menu
+  const skill = btn.dataset.skill;
+  const have = btn.dataset.have === '1';
+  const items = [`<button type="button" class="sk-menu-item" data-act="find">${t('radar.skFind')}</button>`,
+                 `<button type="button" class="sk-menu-item" data-act="learn">${t('radar.skLearn')}</button>`];
+  if (!have) items.push(`<button type="button" class="sk-menu-item" data-act="add">${t('radar.skAddCv')}</button>`);
+  const menu = document.createElement('div');
+  menu.className = 'sk-menu';
+  menu.innerHTML = `<div class="sk-menu-h">${esc(skill)}</div>${items.join('')}`;
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.top = (window.scrollY + r.bottom + 4) + 'px';
+  menu.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 12)) + 'px';
+  const close = () => { menu.remove(); document.removeEventListener('click', close); };
+  setTimeout(() => document.addEventListener('click', close), 0);
+  menu.querySelector('[data-act="find"]').addEventListener('click', () => { close(); radarSkillFind(skill); });
+  menu.querySelector('[data-act="learn"]').addEventListener('click', () => { close(); window.open('https://www.google.com/search?q=' + encodeURIComponent(skill + ' course certification tutorial'), '_blank', 'noopener'); });
+  menu.querySelector('[data-act="add"]')?.addEventListener('click', () => { close(); radarSkillAddToCv(skill); });
+}
+
+// Re-aim the Radar search at a single skill.
+function radarSkillFind(skill) {
+  _radar.query = skill;
+  const q = document.getElementById('radar-q'); if (q) q.value = skill;
+  document.querySelectorAll('.radar-chip').forEach(c => c.classList.toggle('active', c.dataset.chip === skill));
+  radarFetch();
+}
+
+// "I already have this" → add an in-demand skill the matcher didn't find to the CV (first category).
+function radarSkillAddToCv(skill) {
+  const cv = Store.get().cv;
+  const cat = (cv.skills || [])[0];
+  if (!cat) { toast(t('radar.skNoCat')); return; }
+  if (!Array.isArray(cat.items)) cat.items = [];
+  if (cat.items.some(i => (i.text || '').toLowerCase() === skill.toLowerCase())) { toast(t('radar.skDup')); return; }
+  const display = prettySkill(skill);   // write a professionally-cased label, not the lowercase detection form
+  cat.items.push({ id: uid(), text: display, hidden: false });
+  Store.save();
+  toast(`✅ "${display}" ${t('radar.skAddedToast')} (${cat.category})`);
+  renderRadarFeed();   // re-render so the chip flips from ⬜ missing → ✅ have
+}
+
+// AI market read: Claude summarises the loaded jobs vs the user's profile (bridge, fallback modal).
+async function radarMarketRead() {
+  if (!_radar.jobs.length) { toast(t('radar.aiNeedJobs')); return; }
+  const shown = _radar.remoteOnly ? _radar.jobs.filter(j => j.remote) : _radar.jobs;
+  const prompt = Prompts.marketRead(shown.slice(0, 25));
+  const apply = txt => { _radar.market = String(txt || '').trim(); renderRadarFeed(); };
+
+  let alive = false;
+  try { alive = _bridgeOk === true ? true : await AI._health(); } catch {}
+  const btn = document.getElementById('radar-market');
+  if (alive) {
+    if (btn) { btn.disabled = true; btn.textContent = t('radar.insMarketRun'); }
+    try { apply(await AI._generate(prompt, AI.SMART)); }
+    catch (e) { toast(t('ai.bridgeErrPre') + (e.message || e)); if (btn) { btn.disabled = false; btn.textContent = t('radar.insMarket'); } }
+  } else {
+    AI.assist({ title: t('radar.insMarket'), prompt, onApply: async (text) => apply(text) });
+  }
 }
 
 // Ask Claude to rank the loaded jobs against the CV profile (bridge, with copy-paste fallback).
@@ -4494,6 +4769,15 @@ function viewRadar() {
               </div>
             </details>
           </div>
+          ${(() => {
+            const nb = radarStore().newBySearch || {};
+            const entries = Object.entries(nb).filter(([, c]) => c > 0);
+            if (!entries.length) return '';
+            return `<div class="radar-newbanner" id="radar-newbanner">
+              <span>🔔 <strong>${radarStore().newCount || 0}</strong> ${t('radar.newWord')} ${t('radar.newAcross')}</span>
+              ${entries.map(([q, c]) => `<button class="radar-newchip" data-newq="${esc(q)}">${esc(q)} <b>${c}</b></button>`).join('')}
+            </div>`;
+          })()}
           <div id="radar-feed"></div>
         </div>
       </div>
@@ -4507,12 +4791,13 @@ function viewRadar() {
 
       <!-- ── Curated boards ────────────────────────────────── -->
       <div class="board-section-title">${t('radar.boardsTitle')}</div>
+      ${_radar.query ? `<div class="board-q-hint">🔎 ${t('radar.boardsQuery')} <strong>${esc(_radar.query)}</strong></div>` : ''}
       <div class="radar-grid">
         ${JOB_BOARDS.map(group => `
           <div class="board-group">
             <div class="board-group-title">${group.group}</div>
             ${group.links.map(l => `
-              <a href="${esc(l.url)}" target="_blank" rel="noopener" class="board-link">
+              <a href="${esc(boardUrl(l))}" target="_blank" rel="noopener" class="board-link"${l.q && _radar.query ? ` title="${esc(t('radar.boardsQuery'))} ${esc(_radar.query)}"` : ''}>
                 <span>${esc(l.name)}</span>
                 <span style="display:flex;gap:4px">
                   ${l.tags.map(t=>`<span class="board-tag tag-${t}">${TAG_LABELS[t]||t}</span>`).join('')}
@@ -4541,6 +4826,22 @@ function viewRadar() {
       runSearch();
     });
   });
+  // "New since last visit" banner: each chip loads that saved search (and applies its filters),
+  // reconciling the nav badge's count with what the feed actually shows.
+  document.querySelectorAll('.radar-newchip').forEach(b => b.addEventListener('click', () => {
+    const q = b.dataset.newq;
+    document.getElementById('radar-q').value = q;
+    _radar.query = q;
+    const s = (radarStore().saved || []).find(x => x.q.toLowerCase() === q.toLowerCase());
+    if (s) {
+      _radar.intern = !!s.intern; _radar.visaOnly = !!s.visa;
+      const i = document.getElementById('radar-intern'); if (i) i.checked = _radar.intern;
+      const v = document.getElementById('radar-visa');   if (v) v.checked = _radar.visaOnly;
+    }
+    b.remove();   // they're viewing it now → drop the chip
+    document.querySelectorAll('.radar-chip').forEach(c => c.classList.toggle('active', c.dataset.chip === q));
+    radarFetch();
+  }));
   document.getElementById('radar-intern').addEventListener('change', e => { _radar.intern = e.target.checked; radarFetch(); });
   // Remote-only is a client-side filter — no need to re-hit the bridge.
   document.getElementById('radar-remote').addEventListener('change', e => { _radar.remoteOnly = e.target.checked; renderRadarFeed(); });

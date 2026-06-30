@@ -618,6 +618,14 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .kb-count { background: var(--border); color: var(--text); border-radius: 20px; padding: 1px 8px; font-size: 11px; }
 .kb-cards { padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 60px; }
 .kb-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0; }
+
+/* Tracker empty state — shown when there are zero saved applications. */
+.trk-empty { text-align: center; max-width: 560px; margin: 24px auto; padding: 40px 28px; }
+.trk-empty-icon { font-size: 44px; line-height: 1; margin-bottom: 10px; }
+.trk-empty h3 { margin: 0 0 8px; font-size: 20px; color: var(--text); }
+.trk-empty > p { color: var(--muted); margin: 0 auto 18px; max-width: 460px; line-height: 1.55; }
+.trk-empty-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.trk-empty-hint { font-size: 12.5px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; display: inline-block; }
 .kb-card {
   background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 11px;
   box-shadow: var(--shadow-xs);
@@ -898,6 +906,40 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 .radar-cache { font-size: 11px; color: var(--muted); font-style: italic; }
 .radar-srcerr { font-size: 11.5px; color: #b07800; background: rgba(240,165,0,.1); border: 1px solid rgba(240,165,0,.25); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
 [data-theme="dark"] .radar-srcerr { color: #f0b544; }
+
+/* Radar insights panel: result summary + skill demand/gaps + AI market read. */
+.radar-ins { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); padding: 10px 12px; margin: 2px 0 14px; }
+.radar-ins-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; font-size: 12.5px; color: var(--text); }
+.ins-stat { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ins-fitlbl { color: var(--muted); margin-right: 2px; }
+.ins-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: inline-block; margin: 0 1px 0 5px; }
+.ins-sep { width: 1px; height: 14px; background: var(--border); }
+.radar-ins-skills { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ins-skill-line { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.ins-skill-lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; min-width: 96px; }
+.ins-skill { font-family: inherit; font-size: 11px; line-height: 1.5; padding: 2px 8px; border-radius: 11px; border: 1px solid var(--border); cursor: pointer; transition: box-shadow .12s, transform .12s; }
+.ins-skill:hover { box-shadow: 0 2px 6px rgba(0,0,0,.14); transform: translateY(-1px); }
+.ins-skill:active { transform: translateY(0); }
+.ins-skill b { opacity: .55; font-weight: 700; margin-left: 1px; }
+.ins-have { background: rgba(39,174,96,.12); border-color: rgba(39,174,96,.35); color: #1e8e50; }
+.ins-miss { background: rgba(240,165,0,.13); border-color: rgba(240,165,0,.4); color: #a8760a; }
+[data-theme="dark"] .ins-have { color: #4fd089; }
+[data-theme="dark"] .ins-miss { color: #f0b544; }
+.radar-ins-market { margin-top: 11px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ins-market-hint { font-size: 11.5px; color: var(--muted); flex: 1; min-width: 160px; }
+.ins-market-out { width: 100%; margin-top: 4px; font-size: 13px; line-height: 1.6; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; white-space: pre-wrap; }
+.sk-menu { position: absolute; z-index: 1200; min-width: 160px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.2); padding: 5px; }
+.sk-menu-h { font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 8px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; text-transform: capitalize; }
+.sk-menu-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; padding: 7px 9px; font-size: 12.5px; font-family: inherit; color: var(--text); border-radius: 6px; cursor: pointer; }
+.sk-menu-item:hover { background: var(--bg); }
+/* "New since last visit" banner (reconciles the nav badge with the feed). */
+.radar-newbanner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 9px 12px; font-size: 12.5px; color: var(--text); background: rgba(231,76,60,.08); border: 1px solid rgba(231,76,60,.3); border-radius: var(--radius); }
+.radar-newchip { font-family: inherit; font-size: 11.5px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; }
+.radar-newchip:hover { box-shadow: 0 2px 6px rgba(0,0,0,.14); }
+.radar-newchip b { color: #e74c3c; margin-left: 2px; }
+/* Curated-boards "searches your query" hint. */
+.board-q-hint { font-size: 12px; color: var(--muted); margin: -4px 0 12px; }
+.board-q-hint strong { color: var(--text); }
 
 /* ── App status badge ──────────────────────────────────────────── */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; flex-shrink: 0; }

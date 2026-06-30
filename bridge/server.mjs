@@ -197,6 +197,23 @@ async function cached(key, fn) {
   return { data, hit: false };
 }
 
+/* In-memory cache for /ai responses so re-opening the same generation doesn't re-spend
+   quota (or an API call). Keyed on model+prompt. Web-research calls are never cached
+   (must stay live); the front-end's "Regenerate" sends fresh:true. LRU + TTL. */
+const AI_TTL = 30 * 60 * 1000;
+const AI_MAX = 60;
+const _aiCache = new Map();   // key → { at, text }
+function aiCacheGet(k) {
+  const h = _aiCache.get(k);
+  if (h && Date.now() - h.at < AI_TTL) { _aiCache.delete(k); _aiCache.set(k, h); return h.text; }   // bump to MRU
+  if (h) _aiCache.delete(k);
+  return null;
+}
+function aiCacheSet(k, text) {
+  _aiCache.set(k, { at: Date.now(), text });
+  while (_aiCache.size > AI_MAX) _aiCache.delete(_aiCache.keys().next().value);   // evict oldest
+}
+
 function fmtSalary(min, max) {
   const k = n => '$' + Math.round(Number(n) / 1000) + 'k';
   if (min && max) return `${k(min)}–${k(max)}`;
@@ -555,12 +572,24 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       const t0 = Date.now();
       try {
-        const { prompt, model, web } = JSON.parse(body || '{}');
+        const { prompt, model, web, fresh } = JSON.parse(body || '{}');
         if (!prompt || String(prompt).trim().length < 2) throw new Error('empty prompt');
         const useModel = (typeof model === 'string' && ALLOWED_MODELS.has(model)) ? model : '';
         const useWeb = web === true || web === '1';
+        // Serve from cache unless this is a web call or an explicit regenerate.
+        const cacheKey = useModel + '|' + prompt;
+        if (!useWeb && fresh !== true) {
+          const cachedText = aiCacheGet(cacheKey);
+          if (cachedText != null) {
+            console.log(`→ prompt (${prompt.length} chars${useModel ? ', ' + useModel : ''}) — cache hit`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, text: cachedText, cached: true }));
+            return;
+          }
+        }
         process.stdout.write(`→ prompt (${prompt.length} chars${useModel ? ', ' + useModel : ''}${useWeb ? ', web' : ''})… `);
         const text = await generate(String(prompt), { model: useModel, web: useWeb });
+        if (!useWeb) aiCacheSet(cacheKey, text);   // cache non-web responses for reuse
         console.log(`done in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, text }));
