@@ -42,7 +42,7 @@ for (const envPath of [path.join(STATIC_DIR, '.env'), path.join(__dirname, '.env
 const PORT  = process.env.BRIDGE_PORT ? Number(process.env.BRIDGE_PORT) : 8787;
 const HOST  = process.env.BRIDGE_HOST || '127.0.0.1';   // set 0.0.0.0 to reach it on your LAN (e.g. a phone)
 const MODEL = process.env.CLAUDE_MODEL || '';           // optional default model alias: haiku | sonnet | opus
-const BUILD = 12;                                       // bumped on protocol change so the app can flag a stale bridge
+const BUILD = 13;                                       // bumped on protocol change so the app can flag a stale bridge
 
 // AI mode: if ANTHROPIC_API_KEY is set, the bridge calls the Anthropic API (bring your own key).
 // Otherwise it shells out to the `claude` CLI (Claude Code subscription, no key needed).
@@ -52,7 +52,7 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
 // Free key at https://developer.adzuna.com. Off until both vars are set.
 const ADZUNA_ID  = process.env.ADZUNA_APP_ID  || '';
 const ADZUNA_KEY = process.env.ADZUNA_APP_KEY || '';
-const ADZUNA_COUNTRIES = (process.env.ADZUNA_COUNTRIES || 'gb,ca').split(',').map(s => s.trim()).filter(Boolean);
+const ADZUNA_COUNTRIES = (process.env.ADZUNA_COUNTRIES || 'gb,us,ca').split(',').map(s => s.trim()).filter(Boolean);
 
 /* ── Locate a working `claude` binary ──────────────────────────── */
 function resolveClaude() {
@@ -182,6 +182,36 @@ async function fetchJSON(url, { timeout = 9000, headers = {} } = {}) {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
   } finally { clearTimeout(t); }
+}
+
+async function fetchText(url, { timeout = 9000, headers = {} } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 CareerDashboard', 'Accept': 'application/rss+xml, text/xml, */*', ...headers } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.text();
+  } finally { clearTimeout(t); }
+}
+
+// Minimal RSS <item> parser (no XML dependency) for feeds like We Work Remotely.
+// Pulls a fixed set of fields and HTML-entity-decodes each (CDATA-safe).
+function parseRssItems(xml) {
+  const items = [];
+  const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+  let m;
+  while ((m = itemRe.exec(xml))) {
+    const block = m[1];
+    const field = tag => {
+      const r = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
+      return r ? decodeEntities(r[1].replace(/^\s*<!\[CDATA\[|\]\]>\s*$/g, '').trim()) : '';
+    };
+    items.push({
+      title: field('title'), link: field('link'), description: field('description'),
+      region: field('region'), category: field('category'), pubDate: field('pubDate'),
+    });
+  }
+  return items;
 }
 
 /* Small in-memory cache so repeated searches / source toggles don't re-hit the
@@ -346,7 +376,45 @@ async function fromAdzuna(q) {
   return perCountry.flat();
 }
 
-const SOURCE_FETCHERS = { remotive: fromRemotive, remoteok: fromRemoteOK, arbeitnow: fromArbeitnow, jobicy: fromJobicy, themuse: fromTheMuse, himalayas: fromHimalayas, adzuna: fromAdzuna };
+// WorkingNomads — a large curated remote-jobs board (JSON, whole board, no key).
+async function fromWorkingNomads() {
+  const j = await fetchJSON('https://www.workingnomads.com/api/exposed_jobs/');
+  const arr = Array.isArray(j) ? j : (j.jobs || []);
+  return arr.map(o => ({
+    source: 'WorkingNomads', title: o.title, company: o.company_name,
+    location: o.location || 'Remote', url: o.url, remote: true,
+    salary: '',
+    tags: [o.category_name, ...String(o.tags || '').split(',').map(s => s.trim())].filter(Boolean).slice(0, 6),
+    date: (o.pub_date || '').slice(0, 10),
+    description: stripHtml(o.description).slice(0, 4000),
+  }));
+}
+
+// We Work Remotely — top-tier remote board, RSS only. Title is "Company: Role"; pull the
+// tech category feeds (whole board, no key). region → location, category → tag.
+async function fromWeWorkRemotely() {
+  const feeds = [
+    'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+    'https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss',
+  ];
+  const xmls = await Promise.all(feeds.map(u => fetchText(u).catch(() => '')));
+  const items = xmls.flatMap(parseRssItems);
+  return items.map(o => {
+    const ci = o.title.indexOf(':');
+    const company = ci > 0 ? o.title.slice(0, ci).trim() : '';
+    const title = ci > 0 ? o.title.slice(ci + 1).trim() : o.title;
+    return {
+      source: 'We Work Remotely', title, company,
+      location: o.region || 'Remote', url: o.link, remote: true,
+      salary: '',
+      tags: [o.category].filter(Boolean).slice(0, 6),
+      date: o.pubDate && !isNaN(new Date(o.pubDate)) ? new Date(o.pubDate).toISOString().slice(0, 10) : '',
+      description: stripHtml(o.description).slice(0, 4000),
+    };
+  });
+}
+
+const SOURCE_FETCHERS = { remotive: fromRemotive, remoteok: fromRemoteOK, arbeitnow: fromArbeitnow, jobicy: fromJobicy, themuse: fromTheMuse, himalayas: fromHimalayas, adzuna: fromAdzuna, workingnomads: fromWorkingNomads, weworkremotely: fromWeWorkRemotely };
 
 // Visa-sponsorship / relocation help — keyword-detected from title+tags+description because
 // no source exposes a reliable boolean anymore (Arbeitnow dropped its visa_sponsorship field).
@@ -551,7 +619,7 @@ const server = http.createServer((req, res) => {
         const visa = u.searchParams.get('visa') === '1';
         const english = u.searchParams.get('english') === '1';
         const regions = (u.searchParams.get('regions') || '').split(',').map(s => s.trim()).filter(Boolean);
-        const sources = (u.searchParams.get('sources') || 'remotive,remoteok,arbeitnow,jobicy,themuse,himalayas,adzuna').split(',').map(s => s.trim()).filter(Boolean);
+        const sources = (u.searchParams.get('sources') || 'remotive,remoteok,arbeitnow,jobicy,themuse,himalayas,adzuna,workingnomads,weworkremotely').split(',').map(s => s.trim()).filter(Boolean);
         process.stdout.write(`→ jobs q="${q}" intern=${intern} visa=${visa} english=${english} regions=[${regions}]… `);
         const { jobs, errors, cached: wasCached } = await getJobs({ q, sources, intern, visa, english, regions });
         console.log(`${jobs.length} jobs in ${((Date.now() - t0) / 1000).toFixed(1)}s${wasCached ? ' (cache)' : ''}${errors.length ? ' (' + errors.join('; ') + ')' : ''}`);

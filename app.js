@@ -339,7 +339,9 @@ const I18N = {
     'radar.srcArbeitnow': 'Europe — beaucoup de stages (Praktikum / Werkstudent)', 'radar.srcJobicy': "Remote, avec niveau d'expérience",
     'radar.srcThemuse': 'Vraies entreprises mondiales (sur site + remote) — idéal pour visa / relocation',
     'radar.srcHimalayas': 'Remote, avec salaires affichés',
-    'radar.srcAdzuna': 'Postes sur site (UK, Canada…) — nécessite une clé API gratuite',
+    'radar.srcAdzuna': 'Postes sur site (UK, US, Canada…) — nécessite une clé API gratuite',
+    'radar.srcWorkingNomads': 'Grand tableau de jobs remote (mondial)',
+    'radar.srcWwr': 'We Work Remotely — board remote de référence',
     'radar.savedLabel': 'Recherches suivies :',
     'radar.noSaved': 'Aucune — enregistrez une recherche pour suivre les nouvelles offres.',
     'radar.saveSearch': 'Suivre', 'radar.saveSearchTip': 'Enregistrer cette recherche et suivre les nouvelles offres',
@@ -621,7 +623,9 @@ const I18N = {
     'radar.srcArbeitnow': 'Europe — many internships (Praktikum / Werkstudent)', 'radar.srcJobicy': 'Remote, with experience level',
     'radar.srcThemuse': 'Real worldwide companies (on-site + remote) — best for visa / relocation',
     'radar.srcHimalayas': 'Remote, with listed salaries',
-    'radar.srcAdzuna': 'On-site jobs (UK, Canada…) — needs a free API key',
+    'radar.srcAdzuna': 'On-site jobs (UK, US, Canada…) — needs a free API key',
+    'radar.srcWorkingNomads': 'Large curated remote-jobs board (global)',
+    'radar.srcWwr': 'We Work Remotely — top-tier remote board',
     'radar.savedLabel': 'Tracked searches:',
     'radar.noSaved': 'None yet — save a search to track new jobs.',
     'radar.saveSearch': 'Track', 'radar.saveSearchTip': 'Save this search and track new jobs',
@@ -1210,7 +1214,7 @@ const Prompts = {
       + `Write a cover letter in ENGLISH for an internship or junior role in the candidate's field (see profile).\n`
       + `Format: 4 paragraphs · 280-350 words · name "${company || 'the company'}" explicitly `
       + `· problem-solution angle · sincere, no empty formulas · no "I am writing to apply for…" clichés.\n\n`
-      + `Company: ${company || '[not specified]'}\nRole: ${position || 'Junior Network / Security role'}\n`
+      + `Company: ${company || '[not specified]'}\nRole: ${position || candidateRole()}\n`
       + (jd ? `Job posting:\n${jd.slice(0,1200)}\n` : '')
       + `\nCandidate profile:\n${profileBlurb()}\n\n`
       + `Reply with ONLY the 4 paragraphs, separated by a blank line. No header, no closing signature.`;
@@ -4254,7 +4258,9 @@ const JOB_BOARDS = [
 
 // Fill a board link's query template with the current Radar query (else its default URL).
 function boardUrl(l) {
-  const q = (_radar.query || '').trim();
+  // Follow whatever the user is actually searching; if the box is empty, fall back to the
+  // CV-derived query — never a hardcoded field. (l.url is only used by boards with no q template.)
+  const q = ((_radar.query || '').trim()) || cvQuery();
   if (!l.q || !q) return l.url;
   return l.q.replace('{q}', encodeURIComponent(q))
             .replace('{qs}', q.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''));
@@ -4272,12 +4278,14 @@ const RADAR_SOURCES = [
   { key:'themuse',   label:'The Muse',  tipKey:'radar.srcThemuse' },
   { key:'himalayas', label:'Himalayas', tipKey:'radar.srcHimalayas' },
   { key:'adzuna',    label:'Adzuna',    tipKey:'radar.srcAdzuna' },
+  { key:'workingnomads',  label:'WorkingNomads',    tipKey:'radar.srcWorkingNomads' },
+  { key:'weworkremotely', label:'We Work Remotely', tipKey:'radar.srcWwr' },
 ];
 let _radar = {
   jobs: [], query: '', loading: false, error: '', errors: [], cached: false,   // query set from the CV at boot (cvQuery)
   fetched: false, intern: false, remoteOnly: false, visaOnly: false,
   english: false, regions: [],   // synced from Store.radar at boot (persisted prefs)
-  sources: { remotive: true, remoteok: true, arbeitnow: true, jobicy: true, themuse: true, himalayas: true, adzuna: true },
+  sources: { remotive: true, remoteok: true, arbeitnow: true, jobicy: true, themuse: true, himalayas: true, adzuna: true, workingnomads: true, weworkremotely: true },
 };
 
 // Region/country filter chips (match the bridge's REGION_RE keys).
@@ -4306,7 +4314,7 @@ function jobAge(iso) {
   return days <= 0 ? t('age.today') : days === 1 ? t('age.yesterday') : days < 30 ? days + ' ' + t('age.days') : Math.floor(days/30) + ' ' + t('age.months');
 }
 
-const SOURCE_COLORS = { Remotive:'#7b4dff', RemoteOK:'#ff4742', Arbeitnow:'#0a8a5f', Jobicy:'#e8a400', 'The Muse':'#e0407f', Himalayas:'#0a8acc', Adzuna:'#1ba84f' };
+const SOURCE_COLORS = { Remotive:'#7b4dff', RemoteOK:'#ff4742', Arbeitnow:'#0a8a5f', Jobicy:'#e8a400', 'The Muse':'#e0407f', Himalayas:'#0a8acc', Adzuna:'#1ba84f', WorkingNomads:'#e2673b', 'We Work Remotely':'#4a72e0' };
 const ALL_SOURCE_KEYS = RADAR_SOURCES.map(s => s.key);
 
 /* ── Proactive Radar — saved searches + "new since last visit" ───── */
@@ -5129,7 +5137,7 @@ function completenessScore() {
 }
 
 /* ── Bridge status + auto-backup (Phase 1: reliability) ──────────── */
-const BRIDGE_MIN_VERSION = 12;   // must match BUILD in bridge/server.mjs
+const BRIDGE_MIN_VERSION = 13;   // must match BUILD in bridge/server.mjs
 let _bridgeOk = false;
 
 async function checkBridge() {
